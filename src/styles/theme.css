@@ -1,0 +1,44 @@
+/* Stitch Four design tokens. Canvas colours live in src/render/palette.ts. */
+:root {
+  color-scheme: light;
+  --page: #e8e5da; /* mean colour of linen-light.webp */
+  --fabric: url('/textures/linen-light.webp');
+  --fabric-size: 192px;
+  --panel: #fdfcfa;
+  --panel-border: #e6e1d8;
+  --ink: #2a2723;
+  --ink-2: #4d4842;
+  --ink-3: #7a746b;
+  --sage: #5b8a6a;
+  --thread-red: #c9413b;
+  --thread-gold: #e2a62f;
+  --thread-win: #467a5c;
+  --focus-ring: rgba(91, 138, 106, 0.55);
+  --shadow: 0 4px 16px rgba(60, 50, 30, 0.12), 0 1px 3px rgba(60, 50, 30, 0.08);
+  --radius: 14px;
+  --font-display: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #272e46; /* mean colour of linen-dark.webp */
+  --fabric: url('/textures/linen-dark.webp');
+  --panel: #1f2538;
+  --panel-border: #343d5a;
+  --ink: #ece8df;
+  --ink-2: #c6c1b7;
+  --ink-3: #8f94a6;
+  --sage: #8fc4a0;
+  --thread-red: #e6584e;
+  --thread-gold: #f2ba42;
+  --thread-win: #96d2aa;
+  --focus-ring: rgba(150, 210, 170, 0.5);
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.linen {
+  background-color: var(--page);
+  background-image: var(--fabric);
+  background-size: var(--fabric-size) var(--fabric-size);
+}

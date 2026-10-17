@@ -1,0 +1,721 @@
+/* Game screen: control row, board, labels — one centred group. */
+.app {
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 20px) calc(env(safe-area-inset-right) + 8px) calc(env(safe-area-inset-bottom) + 20px)
+    calc(env(safe-area-inset-left) + 8px);
+  overflow: hidden;
+}
+
+.stage {
+  /* board box aspect = UNITS_W / UNITS_H from render/hoop.ts */
+  --reserve: calc(246px + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+  --bh: min(
+    calc((100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)) * 1.0444),
+    calc(100dvh - var(--reserve)),
+    640px
+  );
+  --bw: calc(var(--bh) * 0.9575);
+  --hoop-x: calc(var(--bw) * 0.0164); /* hoop's side margin inside the board box */
+  width: var(--bw);
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-areas: 'controls' 'board' 'bottom';
+  row-gap: 4px;
+}
+
+/* --- control row --- */
+.controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: var(--hoop-x);
+  height: 50px;
+}
+
+.icon-btn {
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  background-color: var(--panel);
+  background-image: linear-gradient(var(--panel-a), var(--panel-a)), var(--fabric);
+  background-size: auto, var(--fabric-size) var(--fabric-size);
+  box-shadow: var(--lift);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease;
+}
+.icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px dashed var(--stitch-soft);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.icon-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--lift-press);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+}
+.icon-btn:disabled svg {
+  opacity: 0.8;
+}
+.icon-btn.is-spool svg {
+  transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.icon-btn.is-spool:active svg {
+  transform: rotate(-14deg);
+}
+
+/* --- turn status --- */
+.status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.status-piece {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+.status-piece > img,
+.status-piece > .status-hole {
+  grid-area: 1 / 1;
+  display: block;
+}
+.status-hole {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--stitch);
+}
+.status-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.status-overlay svg {
+  display: block;
+}
+.status-text-wrap {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+.status-text {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* online timer: stitched ring that unwinds */
+.timer-holes {
+  stroke: var(--stitch);
+}
+.timer-shadow {
+  stroke: rgba(60, 40, 20, 0.22);
+}
+[data-theme='dark'] .timer-shadow {
+  stroke: rgba(0, 0, 0, 0.45);
+}
+.timer-thread {
+  stroke: var(--sage);
+  transition: stroke 0.5s ease;
+}
+.timer-twist {
+  stroke: rgba(255, 252, 240, 0.5);
+}
+.timer-ring.is-low .timer-thread {
+  stroke: var(--thread-red);
+}
+.timer-ring.is-low {
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+@keyframes timer-pulse {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* computer thinking: loose thread winding round the piece */
+.swirl path {
+  fill: none;
+  stroke-linecap: round;
+  animation: swirl-wind 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.swirl-spin {
+  transform-origin: 22px 22px;
+  animation: swirl-spin 3.2s linear infinite;
+}
+.swirl-shadow {
+  stroke: rgba(60, 40, 20, 0.26);
+  stroke-width: 2.6;
+  transform: translate(0.6px, 0.9px);
+}
+[data-theme='dark'] .swirl-shadow {
+  stroke: rgba(0, 0, 0, 0.5);
+}
+.swirl-thread {
+  stroke: color-mix(in srgb, var(--thread-gold) 82%, #6b4a10);
+  stroke-width: 2.6;
+}
+[data-theme='dark'] .swirl-thread {
+  stroke: var(--thread-gold);
+}
+.swirl-twist {
+  stroke: rgba(255, 250, 230, 0.55);
+  stroke-width: 0.8;
+}
+@keyframes swirl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes swirl-wind {
+  0% {
+    stroke-dasharray: 14 86;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 62 38;
+    stroke-dashoffset: -30;
+  }
+  100% {
+    stroke-dasharray: 14 86;
+    stroke-dashoffset: -100;
+  }
+}
+
+/* --- board --- */
+.board-wrap {
+  grid-area: board;
+  position: relative;
+  height: var(--bh);
+  width: 100%;
+}
+.board-overlay {
+  position: absolute;
+  /* roughly the taut fabric inside the hoop */
+  inset: 18% 9% 9%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.overlay-card {
+  pointer-events: auto;
+  width: min(100%, 300px);
+  padding: 20px 18px 18px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.overlay-card::before,
+.result::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1.5px dashed var(--stitch);
+  border-radius: 11px;
+  pointer-events: none;
+}
+.overlay-card > * {
+  position: relative;
+}
+.overlay-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+.overlay-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+}
+.overlay-title.is-soft {
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.overlay-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  max-width: 230px;
+}
+
+/* --- bottom: labels + mode chip, or the result card --- */
+.bottom {
+  grid-area: bottom;
+  position: relative;
+  height: 128px;
+  padding-inline: var(--hoop-x);
+  padding-top: 6px;
+}
+.bottom-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.labels {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.labels-vs {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.label-slot {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+.label-slot.is-right {
+  justify-content: flex-end;
+}
+
+/* sewn-on clothing label */
+.label {
+  --tint: var(--panel-a);
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 0 11px;
+  border: 0;
+  border-radius: 5px;
+  text-align: left;
+  color: var(--ink);
+  background-color: var(--panel);
+  background-image: linear-gradient(var(--tint), var(--tint)), var(--fabric);
+  background-size: auto, var(--fabric-size) var(--fabric-size);
+  box-shadow: 0 1px 1px rgba(80, 58, 30, 0.14), 0 3px 8px rgba(80, 58, 30, 0.1);
+}
+[data-theme='dark'] .label {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
+}
+.label::before {
+  /* stitched hem */
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px dashed var(--stitch);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.label::after {
+  /* folded ends where it's sewn down */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(80, 58, 30, 0.1), transparent 7%, transparent 93%, rgba(80, 58, 30, 0.1));
+  pointer-events: none;
+}
+/* difficulty: coloured hem thread + a faint tint */
+.label.tone-easy {
+  --tone: var(--tone-easy);
+}
+.label.tone-medium {
+  --tone: var(--tone-medium);
+}
+.label.tone-hard {
+  --tone: var(--tone-hard);
+}
+.label[class*='tone-'] {
+  --tint: color-mix(in srgb, color-mix(in srgb, var(--tone) 8%, var(--panel)) 88%, transparent);
+}
+.label[class*='tone-']::before {
+  border-color: color-mix(in srgb, var(--tone) 75%, transparent);
+}
+.label-piece {
+  position: relative;
+  flex: none;
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+.label-piece img {
+  display: block;
+}
+.label-offline {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  border: 2px solid var(--panel);
+}
+.label-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.label-tag {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  line-height: 1.2;
+}
+.label-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.label-emoji {
+  margin-right: 4px;
+  font-size: 13px;
+}
+.label-underline {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -9px;
+  width: calc(100% - 24px);
+  height: 4px;
+  overflow: visible;
+  pointer-events: none;
+}
+.label-underline path {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 5 4;
+  stroke: var(--thread-red);
+}
+.label[data-player='2'] .label-underline path {
+  stroke: var(--thread-gold);
+}
+.label:disabled {
+  cursor: default;
+}
+
+/* reaction patch */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  z-index: 5;
+  padding: 8px 13px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  color: var(--ink);
+  background-color: var(--panel);
+  background-image: linear-gradient(var(--panel-a), var(--panel-a)), var(--fabric);
+  background-size: auto, var(--fabric-size) var(--fabric-size);
+  box-shadow: var(--shadow);
+}
+.is-left .bubble {
+  left: 6px;
+  transform-origin: 18px 100%;
+}
+.is-right .bubble {
+  right: 6px;
+  transform-origin: calc(100% - 18px) 100%;
+}
+.bubble::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.2px dashed var(--stitch);
+  border-radius: 9px;
+  pointer-events: none;
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: 3px 3px 4px rgba(60, 40, 20, 0.08);
+}
+.is-left .bubble::after {
+  left: 18px;
+}
+.is-right .bubble::after {
+  right: 18px;
+}
+.bubble.is-emoji {
+  font-size: 28px;
+  padding: 4px 12px;
+  line-height: 1.25;
+}
+
+/* mode chip */
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 0 16px;
+  border: 1.5px dashed var(--stitch);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 45%, transparent);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.mode-chip:hover {
+  background: color-mix(in srgb, var(--panel) 75%, transparent);
+}
+.mode-chip:active {
+  transform: translateY(1px);
+}
+.mode-chip svg {
+  opacity: 0.7;
+}
+
+/* result card */
+.result {
+  position: relative;
+  padding: 13px 14px 13px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.result > * {
+  position: relative;
+}
+.result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-inline: 4px;
+  min-width: 0;
+}
+.result-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-btns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+}
+
+/* --- shared buttons --- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+  background-color: var(--panel);
+  box-shadow: var(--lift);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease, background-color 0.2s ease;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.5px dashed var(--stitch-soft);
+  border-radius: 9px;
+  pointer-events: none;
+}
+.btn.is-primary {
+  color: var(--primary-ink);
+  background-color: var(--primary);
+}
+.btn.is-primary::before {
+  border-color: color-mix(in srgb, var(--primary-ink) 45%, transparent);
+}
+.btn.is-danger {
+  background-color: var(--thread-red);
+  color: #fff8f2;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--lift-press);
+}
+.btn:disabled {
+  opacity: 0.55;
+}
+.btn.is-wide {
+  width: 100%;
+}
+
+/* toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 28px);
+  translate: -50% 0;
+  z-index: 80;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toast::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.2px dashed var(--stitch);
+  border-radius: 999px;
+}
+
+/* --- tighter phones --- */
+@media (max-width: 370px) {
+  .status-text {
+    font-size: 16.5px;
+  }
+  .label {
+    padding: 0 10px 0 9px;
+    gap: 7px;
+  }
+  .label-name {
+    font-size: 14px;
+  }
+  .labels {
+    gap: 5px;
+  }
+}
+
+/* --- desktop: a touch more air --- */
+@media (min-width: 900px) and (min-height: 700px) {
+  .stage {
+    --reserve: 310px;
+    row-gap: 8px;
+  }
+  .bottom {
+    padding-top: 10px;
+  }
+}
+
+/* --- landscape phones: board left, controls and labels in a side column --- */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app {
+    padding-top: calc(env(safe-area-inset-top) + 10px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+  }
+  .stage {
+    --bh: min(
+      calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+      calc((100vw - 300px - env(safe-area-inset-left) - env(safe-area-inset-right)) * 1.0444)
+    );
+    width: auto;
+    height: var(--bh);
+    grid-template-columns: var(--bw) 250px;
+    grid-template-rows: 1fr auto auto 1fr;
+    grid-template-areas: 'board .' 'board controls' 'board bottom' 'board .';
+    column-gap: 18px;
+    row-gap: 10px;
+  }
+  .controls,
+  .bottom {
+    padding-inline: 0;
+  }
+  .bottom {
+    height: auto;
+    min-height: 150px;
+  }
+  .labels {
+    grid-template-columns: 100%;
+    gap: 14px;
+  }
+  .labels-vs {
+    display: none;
+  }
+  .bottom-inner {
+    align-items: flex-start;
+  }
+  .label-slot.is-right {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swirl-spin {
+    animation-duration: 8s;
+  }
+  .swirl path {
+    animation-duration: 4s;
+  }
+  .timer-ring.is-low {
+    animation: none;
+  }
+}

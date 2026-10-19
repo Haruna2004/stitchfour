@@ -50,7 +50,7 @@ export const PALETTE: Record<Theme, Palette> = {
     brassDark: [118, 84, 30],
     p1: [201, 65, 59],
     p2: [226, 166, 47],
-    win: [44, 74, 114], // --thread-win
+    win: [120, 99, 76], // --thread-win: ring thread, a touch deeper
   },
   dark: {
     shadeMix: [10, 12, 22],
@@ -72,6 +72,6 @@ export const PALETTE: Record<Theme, Palette> = {
     brassDark: [90, 62, 24],
     p1: [228, 78, 70],
     p2: [242, 186, 66],
-    win: [244, 236, 216], // --thread-win
+    win: [150, 166, 202], // --thread-win: ring thread, a touch brighter so it reads on navy
   },
 }

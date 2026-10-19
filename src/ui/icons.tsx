@@ -143,3 +143,13 @@ export function OnlineIcon({ size = 32, className }: P) {
     </svg>
   )
 }
+
+/** Stitched circular arrow: a fresh version is ready. */
+export function UpdateIcon({ size = 16, className }: P) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeLinecap="round" aria-hidden>
+      <path d="M13.2 9.2A5.3 5.3 0 1 1 11.6 4" strokeWidth="1.7" strokeDasharray="2.6 1.7" />
+      <path d="M12.6 1.6v3.1H9.5" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  )
+}

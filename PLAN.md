@@ -16,15 +16,17 @@ Name is working title (may change). Hosted at `stitchfour.workers.dev` for now; 
 
 PWA: after the first visit with data, modes 1 and 2 work fully offline. Online shows an offline state gracefully.
 
+Updates (prompt-mode service worker, `src/pwa.ts`): checks on load, on return to the app and every 30 min. No game in progress → soft fade + reload. Mid-game → small "Update ready" patch by the mode chip (tap = confirm + update); otherwise it applies at the next new game / Play again / Rematch.
+
 ## Rules
 - Standard board: 7 columns × 6 rows
 - First player alternates each rematch
 - Undo: allowed in vs Computer and Pass & play; not online
-- Online turn timer: 60s default; exceeding it loses the game
+- Online turn timer: 120s; exceeding it loses the game. Shown as the active label's wavy thread shortening (no numbers)
 
 ## Computer (the bot)
-- Name: "Computer". Difficulty shown by profile emoji/colour (easy/medium/hard)
-- Thinking indicator: a swirling thread (not a needle)
+- Name: "Computer". Label shows the difficulty word (emoji only in the picker + result card)
+- Thinking indicator: a loose wavy thread under the Computer's label (not a needle)
 - Hard: strong but slightly beatable, so it stays fun
 - Minimax + alpha-beta, center-first ordering, bitboards, transposition table for Hard
 - Runs in a Web Worker; min "thinking" delay ~400–800ms

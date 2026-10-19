@@ -15,11 +15,12 @@ import { useTheme } from './lib/theme'
 import { readRoomFromUrl, roomLink, useOnlineRoom } from './net/online'
 import { Board } from './ui/Board'
 import { ConfirmSheet, DifficultySheet, ModeSheet, ReactionsSheet, RenameSheet, type ConfirmInfo } from './ui/Dialogs'
-import { ChatIcon, ChevronIcon, ShareIcon, SpoolIcon, UndoIcon } from './ui/icons'
+import { ChatIcon, ChevronIcon, ShareIcon, SpoolIcon, UndoIcon, UpdateIcon } from './ui/icons'
 import { Menu } from './ui/Menu'
 import { NameLabel, ReactionBubble } from './ui/NameLabel'
 import { Offline, OnlineSheet, RoomCode } from './ui/OnlineSheet'
 import { TurnStatus } from './ui/TurnStatus'
+import { applyUpdate, freshGame, justUpdated, setGameInProgress, useUpdateStatus } from './pwa'
 import './App.css'
 
 // ?room=CODE joins online straight away; the URL is cleaned so it isn't shared by accident.
@@ -52,7 +53,7 @@ const devParams = import.meta.env.DEV ? new URLSearchParams(location.search) : n
 const devMoves = devParams?.get('moves')?.split(',').filter(Boolean).map(Number) ?? []
 const devMode = devParams?.get('mode') as Mode | null
 const devBotDelay = Number(devParams?.get('botDelay')) || undefined
-// ?timer=15 fakes an online turn clock with 15s left
+// ?timer=15 fakes an online turn clock with 15s left on the active label
 const devDeadline = devParams?.get('timer') ? Date.now() + Number(devParams.get('timer')) * 1000 : null
 
 // The app always opens vs Computer unless a room link was used.
@@ -227,7 +228,26 @@ export default function App() {
     setGame((g) => newGame(other(g.starter)))
     setRound((r) => r + 1)
     playSound('snip')
+    freshGame()
   }, [])
+
+  // --- app updates: never reload mid-game
+  const update = useUpdateStatus()
+  const gameBusy = isOnline ? room?.status === 'playing' : game.moves.length > 0 && !isOver(game)
+  useEffect(() => setGameInProgress(gameBusy), [gameBusy])
+  const tapUpdate = () => {
+    if (!gameBusy) return applyUpdate()
+    const onOk = () => {
+      close()
+      applyUpdate()
+    }
+    setSheet({
+      id: 'confirm',
+      info: isOnline
+        ? { title: 'Update now?', body: "The app reloads, so you'll drop out of this game for a moment and rejoin right after.", ok: 'Update', onOk }
+        : { title: 'Restart to update?', body: 'Your current game will end.', ok: 'Update', onOk },
+    })
+  }
 
   const inProgress = isOnline ? room?.status === 'playing' : game.moves.length >= 2 && !isOver(game)
   const guard = (action: () => void) => {
@@ -271,6 +291,7 @@ export default function App() {
       setCode(c)
       updateSettings({ mode: 'online' })
       setSheet(keepSheet ? { id: 'online' } : null)
+      freshGame()
     })
 
   const share = async () => {
@@ -378,7 +399,7 @@ export default function App() {
     const t = state.turn
     statusText = mode === 'bot' ? (t === 1 ? 'Your turn' : "Computer's turn") : mode === 'local' ? `${names[t]}'s turn` : t === you ? 'Your turn' : `${oppName}'s turn`
   }
-  const deadline = isOnline && room?.status === 'playing' && room.turnDeadline ? room.turnDeadline - online.clockSkew : null
+  const deadline = isOnline && room?.status === 'playing' && room.turnDeadline ? room.turnDeadline - online.clockSkew : devDeadline
 
   const interactive =
     !over &&
@@ -405,8 +426,6 @@ export default function App() {
         ? {
             tag: 'Computer',
             name: LEVEL_INFO[level].label,
-            emoji: LEVEL_INFO[level].emoji,
-            tone: level,
             player: 2 as Player,
             onClick: () => setSheet({ id: 'difficulty' }),
             aria: `Computer, ${LEVEL_INFO[level].label}. Change difficulty`,
@@ -471,7 +490,10 @@ export default function App() {
                 : `${oppName} is reconnecting…`,
         primary: mine ? 'Waiting…' : 'Rematch',
         primaryOff: mine || !oppSeat,
-        onPrimary: online.rematch,
+        onPrimary: () => {
+          online.rematch()
+          freshGame()
+        },
         secondary: 'Leave',
         onSecondary: () => switchMode('bot'),
       }
@@ -535,7 +557,7 @@ export default function App() {
               <UndoIcon />
             </button>
           )}
-          <TurnStatus player={statusPlayer} text={statusText} thinking={thinking} deadline={deadline ?? devDeadline} total={TURN_MS} />
+          <TurnStatus player={statusPlayer} text={statusText} />
           <button type="button" className="icon-btn is-spool" onClick={() => setSheet({ id: 'menu' })} aria-label="Menu">
             <SpoolIcon />
           </button>
@@ -608,6 +630,8 @@ export default function App() {
                     player={left.player}
                     theme={theme}
                     active={activeFor(left.player)}
+                    deadline={!over && state.turn === left.player ? deadline : null}
+                    total={TURN_MS}
                     onClick={left.onClick}
                     ariaLabel={left.aria}
                     bubble={bubbleFor(left.player)}
@@ -622,18 +646,40 @@ export default function App() {
                     player={right.player}
                     theme={theme}
                     active={activeFor(right.player)}
-                    tone={'tone' in right ? right.tone : null}
-                    emoji={'emoji' in right ? right.emoji : undefined}
+                    lively={thinking}
+                    deadline={!over && state.turn === right.player ? deadline : null}
+                    total={TURN_MS}
                     offline={'offline' in right ? right.offline : false}
                     onClick={right.onClick}
                     ariaLabel={right.aria}
                     bubble={bubbleFor(right.player)}
                   />
                 </div>
-                <button type="button" className="mode-chip" onClick={() => setSheet({ id: 'mode' })}>
-                  {chip}
-                  <ChevronIcon />
-                </button>
+                <div className="chip-row">
+                  <button type="button" className="mode-chip" onClick={() => setSheet({ id: 'mode' })}>
+                    {chip}
+                    <ChevronIcon />
+                  </button>
+                  <AnimatePresence>
+                    {update !== 'none' && (
+                      <motion.button
+                        key="update"
+                        type="button"
+                        className="update-patch"
+                        onClick={tapUpdate}
+                        aria-label="Update ready. Tap to update the app"
+                        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, rotate: -8 }}
+                        animate={{ opacity: 1, scale: 1, rotate: -1.5 }}
+                        exit={{ opacity: 0, scale: 0.85 }}
+                        transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                        whileTap={reduce ? undefined : { scale: 0.95 }}
+                      >
+                        <UpdateIcon />
+                        Update ready
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -689,6 +735,17 @@ export default function App() {
         )}
         {sheet?.id === 'reactions' && <ReactionsSheet key="reactions" onSend={sendReaction} cooling={cooling} onClose={close} />}
       </AnimatePresence>
+
+      <motion.div
+        className="update-veil linen"
+        aria-hidden
+        initial={{ opacity: justUpdated ? 1 : 0 }}
+        animate={{ opacity: update === 'applying' ? 1 : 0 }}
+        transition={{ duration: update === 'applying' ? 0.4 : 0.6, ease: 'easeInOut' }}
+        style={{ pointerEvents: update === 'applying' ? 'auto' : 'none' }}
+      >
+        {update === 'applying' && <span className="update-veil-text">Updating…</span>}
+      </motion.div>
 
       <AnimatePresence>
         {toast && (

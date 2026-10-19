@@ -69,5 +69,5 @@ export function winBelt(pts: Pt[], cell: number) {
     const q = at(s0 + len)
     stitches.push({ x1: p.x, y1: p.y, x2: q.x, y2: q.y })
   }
-  return { stitches, width: Math.max(2, cell * 0.105) }
+  return { stitches, width: Math.max(2, cell * 0.12) }
 }

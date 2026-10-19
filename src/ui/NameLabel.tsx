@@ -1,5 +1,6 @@
-// Sewn-on fabric clothing label for each player.
-import { useMemo, type ReactNode } from 'react'
+// Sewn-on fabric clothing label for each player. The active one gets a loose wavy thread
+// beneath it; online that thread is also the turn timer (it shortens as time runs out).
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import type { Player } from '../../shared/game'
 import type { Theme } from '../lib/theme'
@@ -11,8 +12,11 @@ interface Props {
   player: Player
   theme: Theme
   active: boolean
-  tone?: 'easy' | 'medium' | 'hard' | null
-  emoji?: string
+  /** Livelier thread (the computer is thinking). */
+  lively?: boolean
+  /** Local epoch ms when this player's turn runs out (online). */
+  deadline?: number | null
+  total?: number
   offline?: boolean
   side: 'left' | 'right'
   onClick?: () => void
@@ -22,14 +26,14 @@ interface Props {
 
 const SIZE = 22
 
-export function NameLabel({ tag, name, player, theme, active, tone, emoji, offline, side, onClick, ariaLabel, bubble }: Props) {
+export function NameLabel({ tag, name, player, theme, active, lively = false, deadline = null, total = 1, offline, side, onClick, ariaLabel, bubble }: Props) {
   const reduce = useReducedMotion() ?? false
   const src = useMemo(() => getPieceSprite(player, theme, SIZE, Math.min(3, window.devicePixelRatio || 1)), [player, theme])
   return (
     <div className={`label-slot is-${side}`}>
       <motion.button
         type="button"
-        className={`label${active ? ' is-active' : ''}${tone ? ` tone-${tone}` : ''}`}
+        className={`label${active ? ' is-active' : ''}`}
         data-player={player}
         onClick={onClick}
         disabled={!onClick}
@@ -44,25 +48,82 @@ export function NameLabel({ tag, name, player, theme, active, tone, emoji, offli
         </span>
         <span className="label-text">
           <span className="label-tag">{tag}</span>
-          <span className="label-name">
-            {emoji && <span className="label-emoji">{emoji}</span>}
-            {name}
-          </span>
+          <span className="label-name">{name}</span>
         </span>
-        <motion.svg
-          className="label-underline"
-          viewBox="0 0 100 4"
-          preserveAspectRatio="none"
-          aria-hidden
-          initial={false}
-          animate={{ clipPath: active ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)', opacity: active ? 1 : 0 }}
-          transition={{ duration: reduce ? 0 : 0.45, ease: 'easeOut' }}
-        >
-          <path d="M1 2 H99" vectorEffect="non-scaling-stroke" />
-        </motion.svg>
+        <AnimatePresence>
+          {active && (
+            <motion.span
+              key="thread"
+              className="lt"
+              aria-hidden
+              initial={reduce ? { opacity: 0 } : { opacity: 0, clipPath: 'inset(0 50% 0 50%)' }}
+              animate={{ opacity: 1, clipPath: 'inset(0 0% 0 0%)' }}
+              exit={{ opacity: 0, transition: { duration: 0.25 } }}
+              transition={{ duration: reduce ? 0.2 : 0.5, ease: 'easeOut' }}
+            >
+              <LooseThread lively={lively} deadline={deadline} total={total} />
+            </motion.span>
+          )}
+        </AnimatePresence>
       </motion.button>
       <AnimatePresence>{bubble}</AnimatePresence>
     </div>
+  )
+}
+
+const H = 10
+const LONG = 260 // drawn wide, centred and clipped to the label
+const WAVE = 28 // wavelength = one travel cycle
+
+// Soft sine thread, a wavelength longer each side so it can travel.
+const wavePath = (amp: number) => {
+  const pts: string[] = []
+  for (let x = -WAVE; x <= LONG + WAVE; x += 2) pts.push(`${x} ${(H / 2 + amp * Math.sin((x / WAVE) * Math.PI * 2)).toFixed(2)}`)
+  return `M${pts.join('L')}`
+}
+const CALM = wavePath(1.4)
+const LIVELY = wavePath(2)
+
+const LOW = 10_000
+const LOW_W = 0.3
+/** Thread length 1 → 0. The last 10s get the final 30%, so they stay visible and feel urgent. */
+const threadLeft = (left: number, total: number) =>
+  left <= LOW ? LOW_W * (left / LOW) : LOW_W + (1 - LOW_W) * Math.min(1, (left - LOW) / Math.max(1, total - LOW))
+
+/** A loose thread drifting along a gentle wave. With a deadline it shortens toward the centre. */
+function LooseThread({ lively, deadline, total }: { lively: boolean; deadline: number | null; total: number }) {
+  const clip = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    const el = clip.current
+    if (!el) return
+    if (deadline === null) {
+      el.style.width = ''
+      el.classList.remove('is-low')
+      return
+    }
+    let raf = 0
+    const tick = () => {
+      const left = Math.max(0, deadline - Date.now())
+      el.style.width = `${(threadLeft(left, total) * 100).toFixed(2)}%`
+      el.classList.toggle('is-low', left <= LOW)
+      if (left > 0) raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => cancelAnimationFrame(raf)
+  }, [deadline, total])
+
+  const d = lively ? LIVELY : CALM
+  return (
+    <span ref={clip} className={`lt-clip${lively ? ' is-lively' : ''}`}>
+      <svg className="lt-svg" width={LONG} height={H}>
+        <g className="lt-wave">
+          <path className="lt-shadow" d={d} transform="translate(0.5 0.8)" />
+          <path className="lt-thread" d={d} />
+          <path className="lt-twist" d={d} transform="translate(0 -0.4)" />
+        </g>
+      </svg>
+    </span>
   )
 }
 

@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     cloudflare(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt', // src/pwa.ts decides when to activate
       injectRegister: false, // registered in src/pwa.ts
       includeAssets: ['icon.svg', 'apple-touch-icon.png', 'textures/*', 'sounds/*', 'fonts/*'],
       manifest: {

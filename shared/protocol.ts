@@ -2,7 +2,7 @@
 import type { Player } from './game'
 
 export const PARTY = 'stitch-room' // kebab-case of the StitchRoom binding
-export const TURN_MS = 60_000
+export const TURN_MS = 120_000
 export const RECONNECT_MS = 60_000
 export const NAME_MAX = 20
 

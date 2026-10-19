@@ -77,22 +77,12 @@
   transform: rotate(-14deg);
 }
 
-/* --- turn status: coloured text + stitched underline --- */
+/* --- turn status: coloured text (the active label's thread shows whose turn it is) --- */
 .status {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 1px;
-  --ul: var(--ink-3);
-}
-.status.is-p1 {
-  --ul: var(--thread-red);
-}
-.status.is-p2 {
-  --ul: var(--thread-gold);
 }
 .status-text-wrap {
   position: relative;
@@ -118,104 +108,6 @@
 }
 .status-text.is-p2 {
   color: var(--thread-gold-ink);
-}
-.status-line {
-  position: relative;
-  max-width: 100%;
-  height: 8px;
-  transition: width 0.3s ease;
-}
-.status-line-layer {
-  position: absolute;
-  inset: 0;
-  display: block;
-}
-.status-line svg {
-  display: block;
-  overflow: hidden;
-}
-.status-line line,
-.status-line path {
-  fill: none;
-  stroke-linecap: round;
-}
-.ul-thread {
-  stroke: var(--ul);
-  stroke-width: 2.4;
-  transition: stroke 0.35s ease;
-}
-.ul-shadow {
-  stroke: rgba(60, 40, 20, 0.24);
-  stroke-width: 2.6;
-}
-[data-theme='dark'] .ul-shadow {
-  stroke: rgba(0, 0, 0, 0.45);
-}
-.ul-twist {
-  stroke: rgba(255, 252, 240, 0.5);
-  stroke-width: 0.8;
-}
-.ul-stitch {
-  opacity: 0.92;
-}
-
-/* online timer: stitches unpick from the right */
-.ul-timer {
-  position: absolute;
-  inset: 0;
-  display: block;
-}
-.ul-holes {
-  position: absolute;
-  inset: 0;
-}
-.ul-holes line {
-  stroke: var(--ink-3);
-  stroke-width: 1.7;
-  opacity: 0.6;
-}
-.ul-clip {
-  position: absolute;
-  inset: 0 auto 0 0;
-  overflow: hidden;
-  transition: width 0.25s ease;
-}
-.ul-timer.is-low {
-  --ul: var(--thread-red);
-  animation: ul-pulse 1s ease-in-out infinite;
-}
-@keyframes ul-pulse {
-  50% {
-    opacity: 0.55;
-  }
-}
-
-/* computer thinking: a loose gold thread waving along */
-.ul-loose {
-  --ul: var(--thread-gold);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-.ul-wave {
-  animation: ul-travel 3.2s linear infinite;
-}
-.ul-loose .ul-thread {
-  stroke-dasharray: 10 4;
-  animation: ul-flow 3.2s linear infinite;
-}
-.ul-loose .ul-twist {
-  stroke-dasharray: 1.4 12.6;
-  animation: ul-flow 3.2s linear infinite;
-}
-@keyframes ul-travel {
-  to {
-    transform: translateX(-28px);
-  }
-}
-@keyframes ul-flow {
-  to {
-    stroke-dashoffset: -28;
-  }
 }
 
 /* --- board --- */
@@ -362,22 +254,6 @@
   background: linear-gradient(90deg, rgba(80, 58, 30, 0.1), transparent 7%, transparent 93%, rgba(80, 58, 30, 0.1));
   pointer-events: none;
 }
-/* difficulty: coloured hem thread + a faint tint */
-.label.tone-easy {
-  --tone: var(--tone-easy);
-}
-.label.tone-medium {
-  --tone: var(--tone-medium);
-}
-.label.tone-hard {
-  --tone: var(--tone-hard);
-}
-.label[class*='tone-'] {
-  --tint: color-mix(in srgb, color-mix(in srgb, var(--tone) 8%, var(--panel)) 88%, transparent);
-}
-.label[class*='tone-']::before {
-  border-color: color-mix(in srgb, var(--tone) 75%, transparent);
-}
 .label-piece {
   position: relative;
   flex: none;
@@ -421,29 +297,91 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.label-emoji {
-  margin-right: 4px;
-  font-size: 13px;
-}
-.label-underline {
+/* active player: a loose thread drifting along a soft wave under the label */
+.lt {
+  --lt: var(--thread-red);
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: -9px;
-  width: calc(100% - 24px);
-  height: 4px;
-  overflow: visible;
+  left: 10px;
+  right: 10px;
+  bottom: -13px;
+  height: 10px;
+  display: flex;
+  justify-content: center;
   pointer-events: none;
 }
-.label-underline path {
-  fill: none;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-dasharray: 5 4;
-  stroke: var(--thread-red);
+.label[data-player='2'] .lt {
+  --lt: var(--thread-gold);
 }
-.label[data-player='2'] .label-underline path {
-  stroke: var(--thread-gold);
+.lt-clip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* faded ends that shrink along with it */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.lt-svg {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+  display: block;
+  overflow: visible;
+}
+.lt-svg path {
+  fill: none;
+  stroke-linecap: round;
+}
+.lt-thread {
+  stroke: var(--lt);
+  stroke-width: 2.4;
+  stroke-dasharray: 10 4;
+  transition: stroke 0.4s ease;
+  animation: lt-flow 3.6s linear infinite;
+}
+.lt-shadow {
+  stroke: rgba(60, 40, 20, 0.22);
+  stroke-width: 2.6;
+  stroke-dasharray: 10 4;
+  animation: lt-flow 3.6s linear infinite;
+}
+[data-theme='dark'] .lt-shadow {
+  stroke: rgba(0, 0, 0, 0.45);
+}
+.lt-twist {
+  stroke: rgba(255, 252, 240, 0.5);
+  stroke-width: 0.8;
+  stroke-dasharray: 1.4 12.6;
+  animation: lt-flow 3.6s linear infinite;
+}
+.lt-wave {
+  animation: lt-travel 3.6s linear infinite;
+}
+/* computer thinking: a touch quicker and looser */
+.lt-clip.is-lively .lt-wave,
+.lt-clip.is-lively path {
+  animation-duration: 2.2s;
+}
+/* online: last 10 seconds */
+.lt-clip.is-low {
+  --lt: var(--thread-red);
+  animation: lt-pulse 1.1s ease-in-out infinite;
+}
+@keyframes lt-travel {
+  to {
+    transform: translateX(-28px);
+  }
+}
+@keyframes lt-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+@keyframes lt-pulse {
+  50% {
+    opacity: 0.5;
+  }
 }
 .label:disabled {
   cursor: default;
@@ -530,6 +468,72 @@
 }
 .mode-chip svg {
   opacity: 0.7;
+}
+
+/* "Update ready": a little sewn-on patch beside the mode chip */
+.chip-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+.chip-row .mode-chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.update-patch {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px 0 11px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--primary-ink);
+  background-color: var(--primary);
+  background-image: linear-gradient(color-mix(in srgb, var(--primary) 84%, transparent), color-mix(in srgb, var(--primary) 84%, transparent)),
+    var(--fabric);
+  background-size: auto, var(--fabric-size) var(--fabric-size);
+  box-shadow: 0 1px 1px rgba(40, 60, 40, 0.2), 0 3px 8px rgba(40, 60, 40, 0.16);
+}
+[data-theme='dark'] .update-patch {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+.update-patch::before {
+  /* stitched hem */
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.3px dashed color-mix(in srgb, var(--primary-ink) 55%, transparent);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.update-patch svg {
+  flex: none;
+}
+
+/* soft fade around an update reload */
+.update-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+}
+.update-veil-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink-3);
 }
 
 /* result card */
@@ -724,12 +728,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ul-wave,
-  .ul-loose .ul-thread,
-  .ul-loose .ul-twist {
-    animation-duration: 9s;
+  .lt-wave,
+  .lt-svg path,
+  .lt-clip.is-lively .lt-wave,
+  .lt-clip.is-lively path {
+    animation-duration: 10s;
   }
-  .ul-timer.is-low {
+  .lt-clip.is-low {
     animation: none;
   }
 }

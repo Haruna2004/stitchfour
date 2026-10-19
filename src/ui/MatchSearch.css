@@ -1,0 +1,369 @@
+/* "Find a player" search view. */
+.match {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-top: 4px;
+  text-align: center;
+}
+.match > .btn-row {
+  align-self: stretch;
+}
+.match-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.match-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  color: var(--ink);
+}
+.match-line {
+  margin: 0;
+  min-height: 22px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  max-width: 290px;
+}
+.match-line > span {
+  display: inline-block;
+}
+.match-time {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  opacity: 0.8;
+}
+
+/* soft "play the computer?" patch */
+.match-prompt {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--thread-gold) 10%, var(--panel));
+  box-shadow: var(--lift);
+}
+[data-theme='dark'] .match-prompt {
+  background: color-mix(in srgb, #fff 4%, var(--panel));
+}
+.match-prompt::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1.5px dashed color-mix(in srgb, var(--thread-gold-ink) 45%, transparent);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.match-prompt > * {
+  position: relative;
+}
+.match-prompt-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+/* --- the little hoop --- */
+.hoop-mini {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex: none;
+}
+.hoop-mini svg {
+  position: relative;
+  display: block;
+  overflow: visible;
+}
+.hm-cloth {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background-color: var(--page);
+  background-image: var(--fabric);
+  background-size: 120px 120px;
+}
+.hm-lug {
+  fill: var(--wood);
+  stroke: var(--wood-dark);
+  stroke-width: 0.8;
+  stroke-opacity: 0.5;
+}
+.hm-screw {
+  stroke: #c9a650;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.hm-screw-head {
+  fill: #b8913a;
+}
+.hm-wood {
+  fill: none;
+  stroke: var(--wood);
+  stroke-width: 7;
+}
+.hm-wood-hi {
+  fill: none;
+  stroke: var(--wood-light);
+  stroke-width: 1.4;
+  opacity: 0.7;
+  transform: translate(-0.6px, -1.4px);
+}
+.hoop-mini::before {
+  /* soft shadow under the hoop */
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  box-shadow: 0 6px 16px rgba(70, 45, 20, 0.22), inset 0 1px 6px rgba(70, 45, 20, 0.16);
+  pointer-events: none;
+}
+[data-theme='dark'] .hoop-mini::before {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+.hm-guide {
+  fill: none;
+  stroke: var(--stitch-soft);
+  stroke-width: 1.4;
+  stroke-dasharray: 0.1 10.9;
+  stroke-linecap: round;
+}
+.hm-thread,
+.hm-shadow {
+  fill: none;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-dasharray: 7 4;
+}
+.hm-thread.is-red {
+  stroke: var(--thread-red);
+}
+.hm-thread.is-gold {
+  stroke: var(--thread-gold);
+  stroke-dasharray: 6 4.2;
+}
+.hm-shadow {
+  stroke: rgba(50, 30, 10, 0.25);
+}
+.hm-shadow.is-in {
+  stroke-dasharray: 6 4.2;
+}
+.hm-tail {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.hm-tail.is-red {
+  stroke: var(--thread-red);
+}
+.hm-tail.is-gold {
+  stroke: var(--thread-gold);
+}
+
+/* masks reveal the stitches as if being sewn; tips ride the leading edge */
+.sew-mask {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 10;
+  stroke-dasharray: 100 100;
+  transform-box: view-box;
+  transform-origin: 70px 70px;
+}
+.sew-mask.is-out {
+  transform: rotate(-90deg);
+  animation: sew 3.6s linear infinite;
+}
+.sew-mask.is-in {
+  transform: scaleX(-1) rotate(-90deg);
+  animation: sew 3.6s linear -1.8s infinite;
+}
+.hm-tip {
+  transform-box: view-box;
+  transform-origin: 70px 70px;
+}
+.hm-tip.is-out {
+  animation: tip-cw 3.6s linear infinite;
+}
+.hm-tip.is-in {
+  animation: tip-ccw 3.6s linear -1.8s infinite;
+}
+@keyframes sew {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 1;
+  }
+  62% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  84% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes tip-cw {
+  0% {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+  62% {
+    transform: rotate(360deg);
+    opacity: 1;
+  }
+  66%,
+  100% {
+    transform: rotate(360deg);
+    opacity: 0;
+  }
+}
+@keyframes tip-ccw {
+  0% {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+  62% {
+    transform: rotate(-360deg);
+    opacity: 1;
+  }
+  66%,
+  100% {
+    transform: rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+/* the two pieces in the middle, drifting gently */
+.hm-pieces {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hm-pieces img {
+  filter: drop-shadow(0 1.5px 1.5px rgba(50, 30, 10, 0.3));
+  transition: translate 0.5s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.hm-pieces img:first-child {
+  translate: -3px 0;
+  animation: drift 3.6s ease-in-out infinite;
+}
+.hm-pieces img:last-child {
+  translate: 3px 0;
+  animation: drift 3.6s ease-in-out -1.8s infinite;
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+/* still (reduced motion / error) and done: both threads fully sewn */
+.hoop-mini.is-still .sew-mask,
+.hoop-mini.is-done .sew-mask {
+  animation: none;
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+.hoop-mini.is-still .hm-tip,
+.hoop-mini.is-done .hm-tip {
+  display: none;
+}
+.hoop-mini.is-still .hm-pieces img,
+.hoop-mini.is-done .hm-pieces img {
+  animation: none;
+}
+.hoop-mini.is-done .hm-pieces img:first-child {
+  translate: 4px 0;
+}
+.hoop-mini.is-done .hm-pieces img:last-child {
+  translate: -4px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sew-mask,
+  .hm-pieces img {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+  .hm-tip {
+    display: none;
+  }
+}
+
+/* --- Online sheet: the featured "Find a player" choice --- */
+.choice.is-feature {
+  min-height: 76px;
+  border: 0;
+  background: var(--primary);
+  box-shadow: var(--lift);
+}
+.choice.is-feature::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px dashed color-mix(in srgb, var(--primary-ink) 45%, transparent);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.choice.is-feature:hover {
+  background: color-mix(in srgb, var(--primary) 92%, var(--ink));
+}
+.choice.is-feature .choice-label {
+  color: var(--primary-ink);
+}
+.choice.is-feature .choice-blurb {
+  color: color-mix(in srgb, var(--primary-ink) 80%, transparent);
+}
+.choice.is-feature .choice-icon {
+  background: var(--panel);
+  box-shadow: 0 0 0 1.5px var(--panel), 0 0 0 3px color-mix(in srgb, var(--primary-ink) 50%, transparent), 0 2px 6px rgba(30, 50, 35, 0.25);
+}
+.pair-icon {
+  position: relative;
+  width: 34px;
+  height: 22px;
+}
+.pair-icon img {
+  position: absolute;
+  top: 0;
+}
+.pair-icon img:first-child {
+  left: 0;
+}
+.pair-icon img:last-child {
+  right: 0;
+}
+.choice-arrow {
+  flex: none;
+  color: var(--primary-ink);
+  opacity: 0.85;
+}
+.choice-arrow svg {
+  display: block;
+  transform: rotate(-90deg);
+}

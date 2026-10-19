@@ -148,3 +148,17 @@ describe('handleEvent', () => {
     expect((await handleEvent(req(JSON.stringify({ events: [open] })), { EVENTS })).status).toBe(204)
   })
 })
+
+describe('matchmaking events', () => {
+  it('accepts the match_* events', () => {
+    for (const e of ['match_seek', 'match_timeout']) expect(sanitizeEvent({ e })?.blobs[0]).toBe(e)
+    expect(sanitizeEvent({ e: 'match_found', durationSec: 12.6 })?.doubles).toEqual([0, 13, 0])
+    expect(sanitizeEvent({ e: 'match_cancel', durationSec: 4 })?.doubles).toEqual([0, 4, 0])
+    expect(sanitizeEvent({ e: 'match_fallback_bot', durationSec: 31 })?.doubles).toEqual([0, 31, 0])
+  })
+  it('clamps the wait and drops ids', () => {
+    expect(sanitizeEvent({ e: 'match_found', durationSec: 99_999 })?.doubles[1]).toBe(3600)
+    const p = sanitizeEvent({ e: 'match_found', durationSec: 5, code: 'ABCDEF', clientId: 'xyz' })
+    expect(JSON.stringify(p)).not.toMatch(/ABCDEF|xyz/)
+  })
+})

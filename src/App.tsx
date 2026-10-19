@@ -13,12 +13,14 @@ import { useNetworkOnline } from './lib/hooks'
 import { LEVEL_INFO } from './lib/levels'
 import { recordResult, updateSettings, useSettings, type Mode } from './lib/settings'
 import { useTheme } from './lib/theme'
+import { useMatchmaking } from './net/lobby'
 import { readRoomFromUrl, roomLink, useOnlineRoom } from './net/online'
 import { Board } from './ui/Board'
 import { ConfirmSheet, DifficultySheet, ModeSheet, ReactionsSheet, RenameSheet, type ConfirmInfo } from './ui/Dialogs'
 import { ChatIcon, ChevronIcon, ShareIcon, SpoolIcon, UndoIcon, UpdateIcon } from './ui/icons'
 import { Menu } from './ui/Menu'
 import { NameLabel, ReactionBubble } from './ui/NameLabel'
+import { MatchSearch, MatchedWaiting } from './ui/MatchSearch'
 import { Offline, OnlineSheet, RoomCode } from './ui/OnlineSheet'
 import { TurnStatus } from './ui/TurnStatus'
 import { applyUpdate, freshGame, justUpdated, setGameInProgress, useUpdateStatus } from './pwa'
@@ -44,10 +46,21 @@ const initialRoom = (() => {
     return raw === null ? null : normalizeCode(raw)
   }
 })()
-function rememberRoom(code: string | null) {
+// set when the room came from Find a player (the server also says so via room.anonymous)
+const MATCH_KEY = 'stitchfour:matched'
+const initialMatched = (() => {
+  try {
+    return !linkRoom && !!initialRoom && sessionStorage.getItem(MATCH_KEY) === '1'
+  } catch {
+    return false
+  }
+})()
+function rememberRoom(code: string | null, matched: boolean) {
   try {
     if (code) sessionStorage.setItem(ROOM_KEY, code)
     else sessionStorage.removeItem(ROOM_KEY)
+    if (code && matched) sessionStorage.setItem(MATCH_KEY, '1')
+    else sessionStorage.removeItem(MATCH_KEY)
   } catch {
     // storage blocked: reload just won't rejoin
   }
@@ -60,6 +73,8 @@ const devMode = devParams?.get('mode') as Mode | null
 const devBotDelay = Number(devParams?.get('botDelay')) || undefined
 // ?timer=15 fakes an online turn clock with 15s left on the active label
 const devDeadline = devParams?.get('timer') ? Date.now() + Number(devParams.get('timer')) * 1000 : null
+// ?matchWait=3 offers the computer after 3s of looking instead of 30s
+const MATCH_WAIT_S = Number(devParams?.get('matchWait')) || 30
 
 // The app always opens vs Computer unless a room link was used.
 updateSettings({ mode: initialRoom ? 'online' : devMode === 'local' ? 'local' : 'bot' })
@@ -104,9 +119,10 @@ export default function App() {
   const level = settings.level
 
   const [code, setCode] = useState<string | null>(initialRoom)
+  const [matched, setMatched] = useState(initialMatched)
   const mode: Mode = settings.mode === 'online' && !code ? 'bot' : settings.mode
   const isOnline = mode === 'online'
-  useEffect(() => rememberRoom(isOnline ? code : null), [isOnline, code])
+  useEffect(() => rememberRoom(isOnline ? code : null, matched), [isOnline, code, matched])
 
   // --- local game (vs Computer / Pass & play)
   const [game, setGame] = useState<GameState>(initialGame)
@@ -119,7 +135,10 @@ export default function App() {
   const you: Player = online.you ?? 1
   const opp = other(you)
   const oppSeat = room?.seats[opp] ?? null
-  const oppName = oppSeat?.name ?? 'Friend'
+  // matched games: anonymous, server-assigned names on both labels, no renames
+  const isMatched = isOnline && (room ? room.anonymous : matched)
+  const oppName = oppSeat?.name ?? (isMatched ? 'Your opponent' : 'Friend')
+  const myName = isMatched ? (room?.seats[you]?.name ?? '…') : settings.name
   // optimistic move so your piece drops instantly; cleared by the next server state
   const [pending, setPending] = useState<{ ply: number; col: number } | null>(null)
   useEffect(() => setPending(null), [room])
@@ -285,7 +304,7 @@ export default function App() {
   }
 
   const inProgress = isOnline ? room?.status === 'playing' : game.moves.length >= 2 && !isOver(game)
-  const guard = (action: () => void) => {
+  const guard = (action: () => void, local?: Pick<ConfirmInfo, 'title' | 'ok'>) => {
     if (!inProgress) return action()
     const go = () => {
       if (!isOnline) abandon() // online leaves are counted in exitOnline / goOnline
@@ -295,7 +314,7 @@ export default function App() {
       id: 'confirm',
       info: isOnline
         ? { title: 'Leave and forfeit?', body: `${oppName} wins this game if you leave now.`, ok: 'Leave game', danger: true, onOk: go }
-        : { title: 'Start a new game?', body: 'The game in progress will be unpicked.', ok: 'New game', onOk: go },
+        : { title: 'Start a new game?', body: 'The game in progress will be unpicked.', ok: 'New game', ...local, onOk: go },
     })
   }
 
@@ -332,11 +351,55 @@ export default function App() {
         abandon()
         online.leave()
       }
+      setMatched(false)
       setCode(c)
       updateSettings({ mode: 'online' })
       setSheet(keepSheet ? { id: 'online' } : null)
       freshGame()
     })
+
+  // --- Find a player
+  const [keepLooking, setKeepLooking] = useState(false)
+  const match = useMatchmaking(
+    settings.clientId,
+    (c, waited) => {
+      track('match_found', { durationSec: waited })
+      // a beat on "Found a player!" before the board takes over
+      setTimeout(() => {
+        exitOnline()
+        setMatched(true)
+        setCode(c)
+        updateSettings({ mode: 'online' })
+        setSheet((s) => (s?.id === 'online' ? null : s))
+        freshGame()
+        match.reset()
+      }, reduce ? 250 : 800)
+    },
+    () => track('match_timeout'),
+  )
+  const searching = match.status !== 'idle'
+  const startSearch = () => {
+    setKeepLooking(false)
+    match.start()
+    track('match_seek')
+    setSheet({ id: 'online' })
+  }
+  const findPlayer = () => guard(startSearch, { title: 'Find a player?', ok: 'Find a player' })
+  const findAnother = () => {
+    exitOnline()
+    startSearch()
+  }
+  const stopSearch = () => {
+    if (match.status === 'connecting' || match.status === 'seeking') {
+      track('match_cancel', { durationSec: match.waitedSec })
+      match.cancel()
+    } else if (match.status !== 'matched') match.reset()
+  }
+  const searchToComputer = () => {
+    if (match.status === 'connecting' || match.status === 'seeking') track('match_fallback_bot', { durationSec: match.waitedSec })
+    match.cancel()
+    switchMode('bot')
+  }
 
   const share = async () => {
     if (!code) return
@@ -384,7 +447,7 @@ export default function App() {
   const saveName = (who: 'me' | Player, v: string) => {
     if (who === 'me') {
       updateSettings({ name: v })
-      if (isOnline) online.rename(v)
+      if (isOnline && !isMatched) online.rename(v)
     } else setNames((n) => ({ ...n, [who]: v }))
     close()
   }
@@ -435,7 +498,7 @@ export default function App() {
     statusText = 'Connecting…'
     statusPlayer = null
   } else if (isOnline && room?.status === 'waiting') {
-    statusText = 'Waiting for friend…'
+    statusText = isMatched ? 'Waiting for opponent…' : 'Waiting for friend…'
     statusPlayer = null
   } else if (outcome) {
     const w = outcome.winner
@@ -467,7 +530,9 @@ export default function App() {
   const left =
     mode === 'local'
       ? { tag: 'Player 1', name: names[1], player: 1 as Player, onClick: () => setSheet({ id: 'rename', who: 1 }), aria: `Rename ${names[1]}` }
-      : { tag: 'You', name: settings.name, player: isOnline ? you : (1 as Player), onClick: () => setSheet({ id: 'rename', who: 'me' }), aria: `You, ${settings.name}. Change your name` }
+      : isMatched
+        ? { tag: 'You', name: myName, player: you, onClick: undefined, aria: `You, ${myName}. A random name for this match` }
+        : { tag: 'You', name: settings.name, player: isOnline ? you : (1 as Player), onClick: () => setSheet({ id: 'rename', who: 'me' }), aria: `You, ${settings.name}. Change your name` }
   const right =
     mode === 'local'
       ? { tag: 'Player 2', name: names[2], player: 2 as Player, onClick: () => setSheet({ id: 'rename', who: 2 }), aria: `Rename ${names[2]}` }
@@ -480,18 +545,27 @@ export default function App() {
             aria: `Computer, ${LEVEL_INFO[level].label}. Change difficulty`,
           }
         : {
-            tag: 'Friend',
-            name: oppSeat?.name ?? 'Waiting…',
+            tag: isMatched ? 'Opponent' : 'Friend',
+            name: oppSeat?.name ?? (isMatched ? 'Joining…' : 'Waiting…'),
             player: opp,
             offline: !!oppSeat && !oppSeat.connected,
             onClick: undefined,
-            aria: oppSeat ? `${oppSeat.name}${oppSeat.connected ? '' : ', disconnected'}` : 'Waiting for friend',
+            aria: oppSeat ? `${oppSeat.name}${oppSeat.connected ? '' : ', disconnected'}` : isMatched ? 'Waiting for your opponent' : 'Waiting for friend',
           }
 
-  const chip = mode === 'bot' ? `vs Computer · ${LEVEL_INFO[level].label}` : mode === 'local' ? 'Pass & play' : `Online · ${code}`
+  const chip = mode === 'bot' ? `vs Computer · ${LEVEL_INFO[level].label}` : mode === 'local' ? 'Pass & play' : isMatched ? 'Online · Matched' : `Online · ${code}`
 
   // --- result card
-  let card: { title: string; sub: string; primary: string; primaryOff?: boolean; onPrimary: () => void; secondary: string; onSecondary: () => void } | null = null
+  let card: {
+    title: string
+    sub: string
+    primary: string
+    primaryOff?: boolean
+    onPrimary: () => void
+    secondary: string
+    secondaryOff?: boolean
+    onSecondary: () => void
+  } | null = null
   if (outcome) {
     const w = outcome.winner
     if (mode === 'bot') {
@@ -517,7 +591,12 @@ export default function App() {
       const why = outcome.reason === 'timeout' ? ' — time out' : outcome.reason === 'forfeit' ? ' — forfeit' : ''
       const mine = room.rematch[you]
       const theirs = room.rematch[opp]
-      card = {
+      const askRematch = () => {
+        online.rematch()
+        track('rematch')
+        freshGame()
+      }
+      const opts = {
         title:
           w === 0
             ? "It's a draw"
@@ -529,24 +608,19 @@ export default function App() {
                   ? 'Game forfeited'
                   : `${oppName} wins`,
         sub: !oppSeat
-          ? `${oppName} left the room`
+          ? `${oppName} left the ${isMatched ? 'game' : 'room'}`
           : mine
-            ? 'Waiting for friend…'
+            ? `Waiting for ${isMatched ? oppName : 'friend'}…`
             : theirs
               ? `${oppName} wants a rematch`
               : oppSeat.connected
                 ? 'Fancy another?'
                 : `${oppName} is reconnecting…`,
-        primary: mine ? 'Waiting…' : 'Rematch',
-        primaryOff: mine || !oppSeat,
-        onPrimary: () => {
-          online.rematch()
-          track('rematch')
-          freshGame()
-        },
-        secondary: 'Leave',
-        onSecondary: () => switchMode('bot'),
       }
+      card = isMatched
+        ? // a stranger: finding someone new comes first, a rematch needs both to agree
+          { ...opts, primary: 'Find another player', onPrimary: findAnother, secondary: mine ? 'Waiting…' : 'Rematch', secondaryOff: mine || !oppSeat, onSecondary: askRematch }
+        : { ...opts, primary: mine ? 'Waiting…' : 'Rematch', primaryOff: mine || !oppSeat, onPrimary: askRematch, secondary: 'Leave', onSecondary: () => switchMode('bot') }
     }
   }
 
@@ -574,6 +648,8 @@ export default function App() {
       )
     } else if (!room) {
       overlay = <p className="overlay-title is-soft">Connecting…</p>
+    } else if (room.status === 'waiting' && isMatched) {
+      overlay = <MatchedWaiting key={code} onFindAnother={findAnother} />
     } else if (room.status === 'waiting' && code) {
       overlay = (
         <>
@@ -655,7 +731,7 @@ export default function App() {
                   <p className="result-sub">{card.sub}</p>
                 </div>
                 <div className="result-btns">
-                  <button type="button" className="btn" onClick={card.onSecondary}>
+                  <button type="button" className="btn" onClick={card.onSecondary} disabled={card.secondaryOff}>
                     {card.secondary}
                   </button>
                   <button type="button" className="btn is-primary" onClick={card.onPrimary} disabled={card.primaryOff} data-silent>
@@ -751,9 +827,10 @@ export default function App() {
             }
             onMode={pickMode}
             onLevel={pickLevel}
+            matched={isMatched}
             onRename={(n) => {
               updateSettings({ name: n })
-              if (isOnline) online.rename(n)
+              if (isOnline && !isMatched) online.rename(n)
             }}
             onClose={close}
           />
@@ -776,6 +853,26 @@ export default function App() {
             offline={!netOnline}
             code={isOnline ? code : null}
             waiting={room?.status !== 'playing'}
+            matched={isMatched}
+            theme={theme}
+            search={
+              searching ? (
+                <MatchSearch
+                  match={match}
+                  theme={theme}
+                  fallbackAfter={MATCH_WAIT_S}
+                  keepLooking={keepLooking}
+                  onKeepLooking={() => setKeepLooking(true)}
+                  onCancel={() => {
+                    stopSearch()
+                    close()
+                  }}
+                  onComputer={searchToComputer}
+                  onRetry={startSearch}
+                />
+              ) : null
+            }
+            onFind={findPlayer}
             onCreate={() => {
               track('room_create')
               goOnline(randomCode(), true)
@@ -785,8 +882,11 @@ export default function App() {
               goOnline(c, false)
             }}
             onShare={share}
-            onLeave={() => switchMode('bot')}
-            onClose={close}
+            onLeave={() => guard(() => switchMode('bot'))}
+            onClose={() => {
+              stopSearch()
+              close()
+            }}
           />
         )}
         {sheet?.id === 'reactions' && <ReactionsSheet key="reactions" onSend={sendReaction} cooling={cooling} onClose={close} />}

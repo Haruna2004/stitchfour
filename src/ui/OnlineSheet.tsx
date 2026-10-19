@@ -1,13 +1,22 @@
-// Online: create a room (code + share link) or join with a code.
-import { useState, type FormEvent } from 'react'
+// Online: find a player (matchmaking), create a room (code + share link) or join with a code.
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import type { Player } from '../../shared/game'
 import { CODE_LENGTH, normalizeCode } from '../../shared/protocol'
-import { ShareIcon } from './icons'
+import type { Theme } from '../lib/theme'
+import { getPieceSprite } from '../render/pieces'
+import { ChevronIcon, ShareIcon } from './icons'
 import { Sheet } from './Sheet'
+import './MatchSearch.css'
 
 interface Props {
   offline: boolean
   code: string | null // current room, if any
   waiting: boolean
+  matched: boolean // current room came from Find a player
+  theme: Theme
+  /** The search view while looking for a player. */
+  search: ReactNode
+  onFind: () => void
   onCreate: () => void
   onJoin: (code: string) => void
   onShare: () => void
@@ -15,7 +24,7 @@ interface Props {
   onClose: () => void
 }
 
-export function OnlineSheet({ offline, code, waiting, onCreate, onJoin, onShare, onLeave, onClose }: Props) {
+export function OnlineSheet({ offline, code, waiting, matched, theme, search, onFind, onCreate, onJoin, onShare, onLeave, onClose }: Props) {
   const [input, setInput] = useState('')
   const [err, setErr] = useState<string | null>(null)
 
@@ -27,6 +36,14 @@ export function OnlineSheet({ offline, code, waiting, onCreate, onJoin, onShare,
     onJoin(c)
   }
 
+  if (search) {
+    return (
+      <Sheet title="Find a player" onClose={onClose}>
+        {search}
+      </Sheet>
+    )
+  }
+
   if (offline) {
     return (
       <Sheet title="Play online" onClose={onClose}>
@@ -36,6 +53,22 @@ export function OnlineSheet({ offline, code, waiting, onCreate, onJoin, onShare,
             OK
           </button>
         </div>
+      </Sheet>
+    )
+  }
+
+  if (code && matched) {
+    return (
+      <Sheet title="Matched game" onClose={onClose}>
+        <p className="sheet-text">You're playing someone new. You both get a random name for this match, so neither of you sees the other's real one.</p>
+        <div className="btn-row">
+          <button type="button" className="btn is-primary" onClick={onClose} data-autofocus>
+            Done
+          </button>
+        </div>
+        <button type="button" className="link-btn" onClick={onLeave}>
+          Leave this game
+        </button>
       </Sheet>
     )
   }
@@ -62,6 +95,18 @@ export function OnlineSheet({ offline, code, waiting, onCreate, onJoin, onShare,
 
   return (
     <Sheet title="Play online" onClose={onClose}>
+      <button type="button" className="choice is-feature" onClick={onFind} data-autofocus>
+        <span className="choice-icon" aria-hidden>
+          <PairIcon theme={theme} />
+        </span>
+        <span className="choice-text">
+          <span className="choice-label">Find a player</span>
+          <span className="choice-blurb">Get paired with someone new.</span>
+        </span>
+        <span className="choice-arrow" aria-hidden>
+          <ChevronIcon size={14} />
+        </span>
+      </button>
       <button type="button" className="choice is-big" onClick={onCreate}>
         <span className="choice-icon is-emoji" aria-hidden>
           🧵
@@ -98,6 +143,18 @@ export function OnlineSheet({ offline, code, waiting, onCreate, onJoin, onShare,
       </form>
       {err && <p className="field-error">{err}</p>}
     </Sheet>
+  )
+}
+
+/** Red and gold pieces side by side. */
+function PairIcon({ theme }: { theme: Theme }) {
+  const dpr = Math.min(3, window.devicePixelRatio || 1)
+  const src = useMemo(() => ([1, 2] as Player[]).map((p) => getPieceSprite(p, theme, 22, dpr)), [theme, dpr])
+  return (
+    <span className="pair-icon">
+      <img src={src[0]} width={22} height={22} alt="" />
+      <img src={src[1]} width={22} height={22} alt="" />
+    </span>
   )
 }
 

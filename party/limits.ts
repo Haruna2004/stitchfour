@@ -1,10 +1,12 @@
 // Pure abuse limits and message validation for the room server.
 import { COLS, ROWS } from '../shared/game'
-import { REACTIONS, type ClientMsg } from '../shared/protocol'
+import { REACTIONS, type ClientMsg, type LobbyClientMsg } from '../shared/protocol'
 
 export const MAX_MSG_BYTES = 1024
 export const MAX_CONNECTIONS = 6 // 2 players plus a few reconnecting sockets
 export const MAX_STRING = 64 // name / clientId, before cleaning
+export const MAX_LOBBY_MSG_BYTES = 256
+export const MAX_LOBBY_CONNECTIONS = 2000
 
 export const BUCKET_BURST = 10
 export const BUCKET_REFILL_PER_S = 4
@@ -86,4 +88,19 @@ export function parseClientMsg(text: string): ClientMsg | null {
     default:
       return null
   }
+}
+
+// Lobby messages (party/lobby.ts).
+export function parseLobbyMsg(text: string): LobbyClientMsg | null {
+  let m: unknown
+  try {
+    m = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (typeof m !== 'object' || m === null || Array.isArray(m)) return null
+  const o = m as Record<string, unknown>
+  if (o.t === 'seek') return isStr(o.clientId, 1) ? { t: 'seek', clientId: o.clientId } : null
+  if (o.t === 'cancel') return { t: 'cancel' }
+  return null
 }

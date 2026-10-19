@@ -12,7 +12,7 @@ Name is working title (may change). Hosted at `stitchfour.pasoma.ai` (also `stit
 ## Modes (v1)
 1. **vs Computer** (default) — algorithmic bot. Easy / Medium / Hard. Offline.
 2. **Pass & play** — two players, one device. Offline.
-3. **Online** — invite by 6-char code + share link. Needs data.
+3. **Online** — Find a player (matchmaking with strangers), or invite by 6-char code + share link. Needs data.
 
 PWA: after the first visit with data, modes 1 and 2 work fully offline. Online shows an offline state gracefully.
 
@@ -39,6 +39,16 @@ Updates (prompt-mode service worker, `src/pwa.ts`): checks on load, on return to
 - Rematch button
 - Quick reactions: 5 phrases + 5 emojis (e.g. "Hurry up", "Nice trick", "Cool"), no free chat
 - No spectators in v1
+
+### Find a player (matchmaking)
+- Top choice in the Online sheet, above Create a room / Join with code. Not a separate mode.
+- Global `Lobby` Durable Object (`/parties/lobby/main`, other names 404). Client sends `seek {clientId}` / `cancel`; lobby sends `count` (players looking, throttled ~1/s), `matched {code}`, `error` (`timeout` after 5 min).
+- Queue = open lobby sockets whose connection state says `seeking` (survives hibernation). FIFO by wait time. Never pairs a clientId with itself (two tabs). The same two players aren't re-paired within 2 min unless both waited 15s+ (memory only). Pure logic in `party/matching.ts`; a 5s alarm re-checks while anyone waits.
+- On a match the lobby picks a fresh code and calls `StitchRoom.initMatch(names)` over DO RPC (not reachable over HTTP), then tells both players and closes their lobby sockets. Everything else is the normal room (turn timer, forfeit, reactions, rematch, limits, cleanup).
+- **Anonymous**: matched rooms (`room.anonymous`) give each seat a fresh server-picked name ("mossy-fern") in hello order. The server ignores the name in `hello` and every `rename`, so custom names never leave the device. Client hides rename on your label, labels say You / Opponent, chip "Online · Matched".
+- Searching UI: little hoop with red + gold running stitches sewing round, "You're first in line" / "N others looking", elapsed time, Cancel (closing the sheet cancels). After 30s (`?matchWait=3` in dev): "No one's around right now. Play the computer instead?" (Play Computer / Keep looking). The bot is never disguised as a person.
+- Matched result card: primary "Find another player" (re-queue), secondary "Rematch" (both must agree). Opponent never arrives: overlay offers "Find someone else" (prominent after 20s).
+- Known gap: no per-IP limits on the lobby, so a scripted client could fill the queue with ghosts (they'd land in rooms no one joins).
 
 ## Look: embroidery hoop
 Inspired by StitchCraft (https://stitchcraft.wasmer.app). Whole game = embroidery piece in a wooden hoop.
@@ -88,7 +98,7 @@ Local only: wins, streaks, record vs each bot level. Later: embroidered patch ac
 Anonymous and coarse. No user ids, clientId, names, room codes, IPs or cookies. Opt-out: Menu > Settings > "Share anonymous usage stats" (stops events and the page beacon on next load).
 - **Page views**: Cloudflare Web Analytics beacon (`src/lib/beacon.ts`), production only, loaded at runtime when `VITE_CF_BEACON_TOKEN` is set at build time (see `.env.example`). Skipped offline until the `online` event.
 - **Game events**: Workers Analytics Engine dataset `stitchfour_events` (binding `EVENTS`). Client `src/lib/analytics.ts` `track()` queues (memory + localStorage, cap 200, 7-day max age) and batches to `POST /api/event` (`party/events.ts`: whitelist, clamp, 204). Flushes after ~5s, on tab hidden (sendBeacon) and on `online`. Dev only logs (`?analytics=1` sends).
-- **Events**: `app_open`, `game_start`, `game_end`, `game_abandon` (2+ moves), `undo`, `room_create`, `room_join`, `room_full`, `rematch`, `install`, `ios_hint_shown`, `update_applied`, `reaction` (count only), `setting` (sound/haptics/theme/level). Online games are reported by seat 1 only, so each counts once.
+- **Events**: `app_open`, `game_start`, `game_end`, `game_abandon` (2+ moves), `undo`, `room_create`, `room_join`, `room_full`, `rematch`, `install`, `ios_hint_shown`, `update_applied`, `reaction` (count only), `setting` (sound/haptics/theme/level), `match_seek`, `match_found` / `match_cancel` / `match_fallback_bot` (durationSec = seconds spent looking), `match_timeout`. Online games are reported by seat 1 only, so each counts once.
 - **Columns**: index1 = event. blob1 event, blob2 mode, blob3 level, blob4 outcome (game_end win/loss/draw, p1/p2 in pass & play; install accepted/dismissed; update_applied idle/patch/fresh), blob5 reason (four/draw/timeout/forfeit), blob6 country, blob7 platform (ios/android/desktop/other), blob8 display (standalone/browser), blob9 theme, blob10 setting key, blob11 setting value. double1 moves, double2 durationSec, double3 reserved.
 - **Query**: `bun scripts/stats.ts [--days 7]` (needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` with Account Analytics: Read).
 
@@ -105,19 +115,24 @@ Anonymous and coarse. No user ids, clientId, names, room codes, IPs or cookies. 
 ```
 shared/
   game.ts          rules: board, moves, win/draw, undo (column-major, row 0 = bottom)
-  protocol.ts      client <-> server messages, reactions, room codes
+  protocol.ts      client <-> server messages (room + lobby), reactions, room codes
+  names.ts         random names ("mossy-fern"), client + server
+  events.ts        analytics event whitelist types
 src/
   bot/             search.ts (negamax + bitboards), bot.worker.ts, client.ts (askBot)
   render/          canvas drawing: palette, thread strokes, hoop, piece sprites, win path
-  ui/              Board (+ WinThread), shell, modals
+  ui/              Board (+ WinThread), shell, modals, MatchSearch (search view)
   lib/             settings (localStorage), theme, names
   audio/           sound.ts (Web Audio samples + haptics)
-  net/             online.ts (partysocket hook)
+  net/             online.ts (room hook), lobby.ts (useMatchmaking)
   lib/analytics.ts, beacon.ts   anonymous events + CF Web Analytics
   styles/          theme.css (light/dark tokens)
 party/
   index.ts         Worker entry, routes /parties/*
-  room.ts          StitchRoom Durable Object (authoritative, turn timer, forfeit)
+  room.ts          StitchRoom Durable Object (authoritative, turn timer, forfeit, anonymous rooms)
+  lobby.ts         Lobby Durable Object (matchmaking queue)
+  matching.ts      pure pairing rules; anon.ts pure anonymous-name rules
+  limits.ts, schedule.ts   message validation + rate limits; alarm maths
   events.ts        POST /api/event -> Analytics Engine
 scripts/           gen-fabric.ts, preview-board.ts, screenshot.ts, gen-icons.ts
 public/            icons, textures, sounds, manifest

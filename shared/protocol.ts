@@ -6,6 +6,13 @@ export const TURN_MS = 120_000
 export const RECONNECT_MS = 60_000
 export const NAME_MAX = 20
 
+// Matchmaking lobby (party/lobby.ts): one global instance.
+export const LOBBY_PARTY = 'lobby' // kebab-case of the Lobby binding
+export const LOBBY_ROOM = 'main'
+export const SEEK_TIMEOUT_MS = 5 * 60_000 // seekers are dropped after this
+export const REPAIR_MS = 2 * 60_000 // don't re-pair the same two players within this...
+export const REPAIR_WAIT_MS = 15_000 // ...unless both have waited this long
+
 // Room codes avoid look-alike characters (0/O, 1/I/L).
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const CODE_LENGTH = 6
@@ -41,6 +48,7 @@ export interface RoomState {
   turnDeadline: number | null // epoch ms when the current turn times out
   rematch: { 1: boolean; 2: boolean }
   round: number
+  anonymous: boolean // matched game: server-assigned names, no renames
 }
 
 export type ClientMsg =
@@ -55,6 +63,13 @@ export type ServerMsg =
   | { t: 'state'; room: RoomState; you: Player | null; now: number }
   | { t: 'react'; from: Player; id: ReactionId }
   | { t: 'error'; code: 'full' | 'bad-move' | 'bad-msg'; message: string }
+
+export type LobbyClientMsg = { t: 'seek'; clientId: string } | { t: 'cancel' }
+
+export type LobbyServerMsg =
+  | { t: 'count'; seeking: number } // players looking right now, you included
+  | { t: 'matched'; code: string }
+  | { t: 'error'; code: 'timeout' | 'bad-msg' | 'busy'; message: string }
 
 export function randomCode(rand: () => number = Math.random): string {
   let s = ''

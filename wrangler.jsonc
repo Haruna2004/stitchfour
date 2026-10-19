@@ -11,9 +11,15 @@
     "run_worker_first": ["/", "/parties/*", "/api/*"]
   },
   "durable_objects": {
-    "bindings": [{ "name": "StitchRoom", "class_name": "StitchRoom" }]
+    "bindings": [
+      { "name": "StitchRoom", "class_name": "StitchRoom" },
+      { "name": "Lobby", "class_name": "Lobby" }
+    ]
   },
   "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "stitchfour_events" }],
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StitchRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["StitchRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["Lobby"] }
+  ],
   "observability": { "enabled": true }
 }

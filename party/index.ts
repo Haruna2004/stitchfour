@@ -1,11 +1,13 @@
 import { routePartykitRequest } from 'partyserver'
-import { PARTY, normalizeCode } from '../shared/protocol'
+import { LOBBY_PARTY, LOBBY_ROOM, PARTY, normalizeCode } from '../shared/protocol'
 import { handleEvent } from './events'
 import { inviteCode, rewriteInvite } from './invite'
 
+export { Lobby } from './lobby'
 export { StitchRoom } from './room'
 
 const ROOM_PATH = new RegExp(`^/parties/${PARTY}/([^/]+)`)
+const LOBBY_PATH = new RegExp(`^/parties/${LOBBY_PARTY}/([^/]+)`)
 
 // Static files come from Workers assets. The Worker runs first only for
 // /parties/* (rooms), /api/* (analytics events) and / (invite meta injection).
@@ -28,6 +30,9 @@ export default {
     if (name !== undefined && normalizeCode(name) !== name) {
       return new Response('Not found', { status: 404 })
     }
+    // One global matchmaking lobby.
+    const lobby = LOBBY_PATH.exec(url.pathname)?.[1]
+    if (lobby !== undefined && lobby !== LOBBY_ROOM) return new Response('Not found', { status: 404 })
 
     return (await routePartykitRequest(request, env)) ?? new Response('Not found', { status: 404 })
   },

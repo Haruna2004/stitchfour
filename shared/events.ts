@@ -43,6 +43,11 @@ export interface EventMap {
   ios_hint_shown: None
   update_applied: { when: (typeof UPDATE_WHENS)[number] }
   reaction: None
+  match_seek: None
+  match_found: { durationSec: number } // seconds waited
+  match_cancel: { durationSec: number }
+  match_timeout: None
+  match_fallback_bot: { durationSec: number }
   setting: { key: (typeof SETTING_KEYS)[number]; value: 'on' | 'off' | 'light' | 'dark' | 'system' | Level }
 }
 

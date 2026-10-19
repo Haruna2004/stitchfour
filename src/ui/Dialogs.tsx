@@ -10,7 +10,7 @@ import { Sheet } from './Sheet'
 export const MODE_INFO: Record<Mode, { label: string; blurb: string; icon: ReactNode }> = {
   bot: { label: 'vs Computer', blurb: 'Play the bot. Works offline.', icon: <ComputerIcon /> },
   local: { label: 'Pass & play', blurb: 'Two players, one device.', icon: <PassIcon /> },
-  online: { label: 'Online', blurb: 'Invite a friend with a code.', icon: <OnlineIcon /> },
+  online: { label: 'Online', blurb: 'Find a player, or invite a friend.', icon: <OnlineIcon /> },
 }
 
 export function ModeOptions({ mode, onPick }: { mode: Mode; onPick: (m: Mode) => void }) {

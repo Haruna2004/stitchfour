@@ -17,7 +17,7 @@
 //   blob10  = setting key   'sound' | 'haptics' | 'theme' | 'level'
 //   blob11  = setting value 'on' | 'off' | 'light' | 'dark' | 'system' | 'easy' | 'medium' | 'hard'
 //   double1 = moves (0..42)
-//   double2 = durationSec (0..86400)
+//   double2 = durationSec (0..86400; match_* = seconds spent looking, 0..3600)
 //   double3 = value (reserved, 0)
 import {
   DISPLAYS, INSTALL_OUTCOMES, LEVELS, MAX_BODY_BYTES, MAX_EVENTS, MODES, OUTCOMES, PLATFORMS, REASONS,
@@ -36,6 +36,7 @@ const mode: Rule = { values: MODES, required: true }
 const level: Rule = { values: LEVELS }
 const moves: Rule = { max: 42 }
 const none = {}
+const wait: Rule = { max: 3600 } // matchmaking wait, seconds
 
 // Whitelist: event name -> allowed props. Anything else is dropped.
 const SPEC: Record<EventName, Partial<Record<Field, Rule>>> = {
@@ -64,6 +65,11 @@ const SPEC: Record<EventName, Partial<Record<Field, Rule>>> = {
   ios_hint_shown: none,
   update_applied: { when: { values: UPDATE_WHENS, required: true } },
   reaction: none,
+  match_seek: none,
+  match_found: { durationSec: wait },
+  match_cancel: { durationSec: wait },
+  match_timeout: none,
+  match_fallback_bot: { durationSec: wait },
   setting: { key: { values: SETTING_KEYS, required: true }, value: { required: true, values: Object.values(SETTING_VALUES).flat() } },
 }
 

@@ -7,6 +7,7 @@ import {
   check,
   createLimiter,
   parseClientMsg,
+  parseLobbyMsg,
 } from './limits'
 
 describe('rate limiter', () => {
@@ -108,5 +109,18 @@ describe('parseClientMsg', () => {
     expect(p({ t: 'rename', name: long })).toBeNull()
     expect(p({ t: 'rename', name: 5 })).toBeNull()
     expect(p({ t: 'hello', clientId: 'x'.repeat(MAX_STRING), name: 'x'.repeat(MAX_STRING) })).not.toBeNull()
+  })
+})
+
+describe('parseLobbyMsg', () => {
+  it('accepts seek and cancel only', () => {
+    expect(parseLobbyMsg('{"t":"seek","clientId":"abc"}')).toEqual({ t: 'seek', clientId: 'abc' })
+    expect(parseLobbyMsg('{"t":"cancel","x":1}')).toEqual({ t: 'cancel' })
+    expect(parseLobbyMsg('{"t":"seek"}')).toBeNull()
+    expect(parseLobbyMsg('{"t":"seek","clientId":""}')).toBeNull()
+    expect(parseLobbyMsg(JSON.stringify({ t: 'seek', clientId: 'x'.repeat(MAX_STRING + 1) }))).toBeNull()
+    expect(parseLobbyMsg('{"t":"hello","clientId":"a","name":"b"}')).toBeNull()
+    expect(parseLobbyMsg('nope')).toBeNull()
+    expect(parseLobbyMsg('[]')).toBeNull()
   })
 })

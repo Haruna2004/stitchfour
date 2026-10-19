@@ -16,6 +16,7 @@ interface Props {
   settings: Settings
   mode: Mode
   canNewGame: boolean
+  matched: boolean // in a matched game your name is hidden behind a random one
   onNewGame: () => void
   onMode: (m: Mode) => void
   onLevel: (l: Level) => void
@@ -23,7 +24,7 @@ interface Props {
   onClose: () => void
 }
 
-export function Menu({ settings, mode, canNewGame, onNewGame, onMode, onLevel, onRename, onClose }: Props) {
+export function Menu({ settings, mode, canNewGame, matched, onNewGame, onMode, onLevel, onRename, onClose }: Props) {
   const [name, setName] = useState(settings.name)
   const [installable, setInstallable] = useState(canPromptInstall)
   const commitName = () => {
@@ -88,6 +89,7 @@ export function Menu({ settings, mode, canNewGame, onNewGame, onMode, onLevel, o
           enterKeyHint="done"
           aria-label="Your name"
         />
+        {matched && <p className="field-note">This match uses random names, so your opponent won't see this one.</p>}
       </Section>
 
       <Section title="Settings">

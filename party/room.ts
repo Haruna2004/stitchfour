@@ -2,13 +2,13 @@ import { Server, type Connection } from 'partyserver'
 import { canPlay, fromMoves, other, type Player } from '../shared/game'
 import {
   TURN_MS,
-  cleanName,
   normalizeCode,
-    type EndReason,
+  type EndReason,
   type RoomState,
   type ServerMsg,
 } from '../shared/protocol'
 import { MAX_CONNECTIONS, MAX_MSG_BYTES, byteSize, check, createLimiter, parseClientMsg, type Limiter } from './limits'
+import { helloName, renameTo, validPair, type AssignedNames } from './anon'
 import { dueActions, nextAlarm, type ClockState } from './schedule'
 
 interface SeatRecord {
@@ -21,6 +21,7 @@ interface Stored {
   room: RoomState
   owners: { 1: SeatRecord | null; 2: SeatRecord | null }
   lastActive: number // epoch ms of the last connect or valid message
+  names: AssignedNames // matched rooms: server-picked names for seat 1 and 2
 }
 
 type ConnState = { seat: Player | null }
@@ -45,15 +46,19 @@ export class StitchRoom extends Server<Env> {
         turnDeadline: null,
         rematch: { 1: false, 2: false },
         round: 1,
+        anonymous: false,
       },
       owners: { 1: null, 2: null },
       lastActive: Date.now(),
+      names: null,
     }
   }
 
   async onStart() {
     this.data = (await this.ctx.storage.get<Stored>('data')) ?? this.freshData()
     this.data.lastActive ??= Date.now() // rooms stored before cleanup existed
+    this.data.room.anonymous ??= false // rooms stored before matchmaking existed
+    this.data.names ??= null
   }
 
   onConnect(conn: Connection<ConnState>) {
@@ -86,7 +91,7 @@ export class StitchRoom extends Server<Env> {
     switch (msg.t) {
       case 'hello':
         if (seat) return
-        return this.hello(conn, msg.clientId, cleanName(msg.name) || 'Player')
+        return this.hello(conn, msg.clientId, msg.name)
       case 'move':
         if (seat) await this.move(conn, seat, msg.col, msg.ply)
         return
@@ -95,7 +100,7 @@ export class StitchRoom extends Server<Env> {
         return
       case 'rename':
         if (seat) {
-          const name = cleanName(msg.name)
+          const name = renameTo(this.data.names, msg.name) // matched rooms ignore renames
           if (!name) return
           this.data.owners[seat]!.name = name
           this.data.room.seats[seat] = { ...this.data.room.seats[seat]!, name }
@@ -142,9 +147,23 @@ export class StitchRoom extends Server<Env> {
     await this.commit() // reschedules any remaining alarm
   }
 
+  // --- RPC (Worker only: Durable Object methods are not reachable over HTTP) ---
+
+  /** Called by the Lobby before telling a matched pair the code. False if the code is taken. */
+  async initMatch(names: [string, string]): Promise<boolean> {
+    if (!normalizeCode(this.name) || !validPair(names)) return false
+    const { owners, room } = this.data
+    if (owners[1] || owners[2] || room.moves.length || this.data.names || this.liveCount() > 0) return false
+    this.data.names = names
+    room.anonymous = true
+    this.data.lastActive = Date.now()
+    await this.commit()
+    return true
+  }
+
   // --- actions ---
 
-  async hello(conn: Connection<ConnState>, clientId: string, name: string) {
+  async hello(conn: Connection<ConnState>, clientId: string, requested: string) {
     const { owners, room } = this.data
     let seat: Player | null = owners[1]?.clientId === clientId ? 1 : owners[2]?.clientId === clientId ? 2 : null
     if (!seat) {
@@ -154,8 +173,9 @@ export class StitchRoom extends Server<Env> {
         conn.close(1000, 'Room full')
         return
       }
-      owners[seat] = { clientId, name, goneSince: null }
+      owners[seat] = { clientId, name: '', goneSince: null }
     }
+    const name = helloName(this.data.names, seat, requested)
     owners[seat]!.goneSince = null
     owners[seat]!.name = name
     room.seats[seat] = { name, connected: true }

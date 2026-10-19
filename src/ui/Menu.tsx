@@ -1,6 +1,7 @@
 // Main menu (from the spool button).
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Level } from '../bot/search'
+import { discardQueued, track } from '../lib/analytics'
 import { canVibrate } from '../lib/hooks'
 import { LEVELS, LEVEL_INFO } from '../lib/levels'
 import { updateSettings, type Mode, type Settings, type ThemePref } from '../lib/settings'
@@ -8,6 +9,8 @@ import { canPromptInstall, isIOS, isStandalone, promptInstall } from '../pwa'
 import { NAME_MAX, cleanName } from '../../shared/protocol'
 import { LevelOptions, ModeOptions } from './Dialogs'
 import { Sheet } from './Sheet'
+
+let iosHintTracked = false // once per session, not per menu open
 
 interface Props {
   settings: Settings
@@ -30,6 +33,28 @@ export function Menu({ settings, mode, canNewGame, onNewGame, onMode, onLevel, o
   }
   const { stats } = settings
   const showIosHint = !installable && isIOS() && !isStandalone()
+  useEffect(() => {
+    if (!showIosHint || iosHintTracked) return
+    iosHintTracked = true
+    track('ios_hint_shown')
+  }, [showIosHint])
+  const setSound = (sound: boolean) => {
+    updateSettings({ sound })
+    track('setting', { key: 'sound', value: sound ? 'on' : 'off' })
+  }
+  const setHaptics = (haptics: boolean) => {
+    updateSettings({ haptics })
+    track('setting', { key: 'haptics', value: haptics ? 'on' : 'off' })
+  }
+  const setTheme = (theme: ThemePref) => {
+    if (theme === settings.theme) return
+    updateSettings({ theme })
+    track('setting', { key: 'theme', value: theme })
+  }
+  const setAnalytics = (analytics: boolean) => {
+    updateSettings({ analytics })
+    if (!analytics) discardQueued()
+  }
 
   return (
     <Sheet title="Stitch Four" onClose={onClose}>
@@ -67,18 +92,19 @@ export function Menu({ settings, mode, canNewGame, onNewGame, onMode, onLevel, o
 
       <Section title="Settings">
         <div className="rows">
-          <Toggle label="Sound" on={settings.sound} onChange={(sound) => updateSettings({ sound })} />
-          {canVibrate() && <Toggle label="Haptics" on={settings.haptics} onChange={(haptics) => updateSettings({ haptics })} />}
+          <Toggle label="Sound" on={settings.sound} onChange={setSound} />
+          {canVibrate() && <Toggle label="Haptics" on={settings.haptics} onChange={setHaptics} />}
           <div className="row">
             <span className="row-label">Theme</span>
             <div className="segmented is-small" role="radiogroup" aria-label="Theme">
               {(['light', 'dark', 'system'] as ThemePref[]).map((t) => (
-                <button key={t} type="button" role="radio" aria-checked={settings.theme === t} className={`seg${settings.theme === t ? ' is-on' : ''}`} onClick={() => updateSettings({ theme: t })}>
+                <button key={t} type="button" role="radio" aria-checked={settings.theme === t} className={`seg${settings.theme === t ? ' is-on' : ''}`} onClick={() => setTheme(t)}>
                   {t[0].toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
           </div>
+          <Toggle label="Share anonymous usage stats" on={settings.analytics} onChange={setAnalytics} />
         </div>
       </Section>
 

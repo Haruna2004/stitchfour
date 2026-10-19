@@ -84,6 +84,14 @@ Light touch for v1 (pattern-differentiated pieces). Revisit later.
 ## Stats
 Local only: wins, streaks, record vs each bot level. Later: embroidered patch achievements.
 
+## Analytics
+Anonymous and coarse. No user ids, clientId, names, room codes, IPs or cookies. Opt-out: Menu > Settings > "Share anonymous usage stats" (stops events and the page beacon on next load).
+- **Page views**: Cloudflare Web Analytics beacon (`src/lib/beacon.ts`), production only, loaded at runtime when `VITE_CF_BEACON_TOKEN` is set at build time (see `.env.example`). Skipped offline until the `online` event.
+- **Game events**: Workers Analytics Engine dataset `stitchfour_events` (binding `EVENTS`). Client `src/lib/analytics.ts` `track()` queues (memory + localStorage, cap 200, 7-day max age) and batches to `POST /api/event` (`party/events.ts`: whitelist, clamp, 204). Flushes after ~5s, on tab hidden (sendBeacon) and on `online`. Dev only logs (`?analytics=1` sends).
+- **Events**: `app_open`, `game_start`, `game_end`, `game_abandon` (2+ moves), `undo`, `room_create`, `room_join`, `room_full`, `rematch`, `install`, `ios_hint_shown`, `update_applied`, `reaction` (count only), `setting` (sound/haptics/theme/level). Online games are reported by seat 1 only, so each counts once.
+- **Columns**: index1 = event. blob1 event, blob2 mode, blob3 level, blob4 outcome (game_end win/loss/draw, p1/p2 in pass & play; install accepted/dismissed; update_applied idle/patch/fresh), blob5 reason (four/draw/timeout/forfeit), blob6 country, blob7 platform (ios/android/desktop/other), blob8 display (standalone/browser), blob9 theme, blob10 setting key, blob11 setting value. double1 moves, double2 durationSec, double3 reserved.
+- **Query**: `bun scripts/stats.ts [--days 7]` (needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` with Account Analytics: Read).
+
 ## Stack
 - Vite + React + TypeScript
 - Motion (Framer Motion)
@@ -105,10 +113,12 @@ src/
   lib/             settings (localStorage), theme, names
   audio/           sound.ts (Web Audio samples + haptics)
   net/             online.ts (partysocket hook)
+  lib/analytics.ts, beacon.ts   anonymous events + CF Web Analytics
   styles/          theme.css (light/dark tokens)
 party/
   index.ts         Worker entry, routes /parties/*
   room.ts          StitchRoom Durable Object (authoritative, turn timer, forfeit)
+  events.ts        POST /api/event -> Analytics Engine
 scripts/           gen-fabric.ts, preview-board.ts, screenshot.ts, gen-icons.ts
 public/            icons, textures, sounds, manifest
 ```
@@ -128,7 +138,5 @@ Separate from the bot. "AI" = LLM opponents that play using their reasoning, not
 - Needs network + API keys → server-side proxy, not offline
 - Keep `src/bot/` and a future `src/ai/` clearly separate
 
-## Later (after v1): Voice chat
-Live voice call between the two players in an online room (talk while playing).
-- Likely WebRTC peer-to-peer audio, signalled through the existing StitchRoom socket; TURN server for strict NATs (e.g. Cloudflare Realtime/Calls)
-- Mic permission prompt only when a player taps "Talk"; mute toggle; clear indicator when the other side is speaking
+## Decided against
+- Voice chat between online players (dropped 2026-10-20)

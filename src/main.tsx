@@ -3,10 +3,21 @@ import { createRoot } from 'react-dom/client'
 import './styles/fonts.css'
 import './index.css'
 import App from './App.tsx'
+import { detectDisplay, detectPlatform, initAnalytics, track } from './lib/analytics'
+import { setupBeacon } from './lib/beacon'
+import { getSettings } from './lib/settings'
 import { setupPWA } from './pwa'
 import { CrashBoundary, CrashScreen } from './ui/CrashScreen'
 
 setupPWA()
+setupBeacon()
+initAnalytics()
+track('app_open', {
+  platform: detectPlatform(),
+  display: detectDisplay(),
+  theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+  mode: getSettings().mode, // App has already picked it (room link opens online)
+})
 
 const rootEl = document.getElementById('root')!
 let crashed = false

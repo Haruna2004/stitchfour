@@ -8,6 +8,7 @@ import {
 import { REACTIONS, TURN_MS, normalizeCode, randomCode, type EndReason } from '../shared/protocol'
 import { haptic, playSound, unlockAudio } from './audio/sound'
 import { askBot, type Level } from './bot/client'
+import { track } from './lib/analytics'
 import { useNetworkOnline } from './lib/hooks'
 import { LEVEL_INFO } from './lib/levels'
 import { recordResult, updateSettings, useSettings, type Mode } from './lib/settings'
@@ -26,6 +27,10 @@ import './App.css'
 // ?room=CODE joins online straight away; the URL is cleaned so it isn't shared by accident.
 // The room is kept per tab so a reload rejoins the same game.
 const ROOM_KEY = 'stitchfour:room'
+const linkRoom = (() => {
+  const raw = readRoomFromUrl()
+  return raw !== null && !!normalizeCode(raw)
+})()
 const badRoomLink = (() => {
   const raw = readRoomFromUrl()
   return raw !== null && !normalizeCode(raw)
@@ -188,10 +193,39 @@ export default function App() {
     if (isOnline && room?.status === 'playing') sawPlaying.current = `o:${code}:${room.round}`
   }, [isOnline, room, code])
   const recorded = useRef<string | null>(null)
+
+  // --- analytics: one start + one end per game. Online games are reported by seat 1 only,
+  // so each game counts once. Refs guard against effect re-runs (StrictMode, re-renders).
+  const gameLevel = mode === 'bot' ? { level } : {}
+  const started = useRef<{ key: string; at: number } | null>(null)
+  const startKey = isOnline ? (you === 1 && room?.status === 'playing' && room.moves.length === 0 ? `o:${code}:${room.round}` : null) : game.moves.length > 0 ? `l:${round}` : null
+  useEffect(() => {
+    if (!startKey || started.current?.key === startKey) return
+    started.current = { key: startKey, at: Date.now() }
+    track('game_start', { mode, ...gameLevel })
+  }, [startKey])
+  const trackEnd = (o: Outcome) => {
+    if (started.current?.key !== overKey) return // not a game we reported the start of
+    const res = o.winner === 0 ? 'draw' : mode === 'local' ? (o.winner === 1 ? 'p1' : 'p2') : o.winner === me ? 'win' : 'loss'
+    track('game_end', {
+      mode,
+      ...gameLevel,
+      outcome: res,
+      reason: o.reason,
+      moves: state.moves.length,
+      durationSec: (Date.now() - started.current.at) / 1000,
+    })
+  }
+  // a game with 2+ moves left or replaced before it finished
+  const abandon = () => {
+    const moves = isOnline ? (you === 1 && room?.status === 'playing' ? room.moves.length : 0) : isOver(game) ? 0 : game.moves.length
+    if (moves >= 2) track('game_abandon', { mode, ...gameLevel, moves })
+  }
   useEffect(() => {
     if (!overKey || !outcome || recorded.current === overKey) return
     if (isOnline && sawPlaying.current !== overKey) return // joined an already-finished game
     recorded.current = overKey
+    trackEnd(outcome)
     const quick = outcome.reason === 'timeout' || outcome.reason === 'forfeit'
     if (quick) playOutcome(outcome, me)
     if (mode === 'local') return
@@ -222,6 +256,7 @@ export default function App() {
 
   useEffect(() => {
     if (badRoomLink) showToast("That room link doesn't look right")
+    if (linkRoom) track('room_join') // opened an invite link
   }, [])
 
   const newRound = useCallback(() => {
@@ -236,10 +271,10 @@ export default function App() {
   const gameBusy = isOnline ? room?.status === 'playing' : game.moves.length > 0 && !isOver(game)
   useEffect(() => setGameInProgress(gameBusy), [gameBusy])
   const tapUpdate = () => {
-    if (!gameBusy) return applyUpdate()
+    if (!gameBusy) return applyUpdate('patch')
     const onOk = () => {
       close()
-      applyUpdate()
+      applyUpdate('patch')
     }
     setSheet({
       id: 'confirm',
@@ -252,16 +287,21 @@ export default function App() {
   const inProgress = isOnline ? room?.status === 'playing' : game.moves.length >= 2 && !isOver(game)
   const guard = (action: () => void) => {
     if (!inProgress) return action()
+    const go = () => {
+      if (!isOnline) abandon() // online leaves are counted in exitOnline / goOnline
+      action()
+    }
     setSheet({
       id: 'confirm',
       info: isOnline
-        ? { title: 'Leave and forfeit?', body: `${oppName} wins this game if you leave now.`, ok: 'Leave game', danger: true, onOk: action }
-        : { title: 'Start a new game?', body: 'The game in progress will be unpicked.', ok: 'New game', onOk: action },
+        ? { title: 'Leave and forfeit?', body: `${oppName} wins this game if you leave now.`, ok: 'Leave game', danger: true, onOk: go }
+        : { title: 'Start a new game?', body: 'The game in progress will be unpicked.', ok: 'New game', onOk: go },
     })
   }
 
   const exitOnline = () => {
     if (!isOnline) return
+    abandon()
     online.leave()
     setCode(null)
   }
@@ -280,6 +320,7 @@ export default function App() {
     if (l === level && mode === 'bot') return close()
     guard(() => {
       exitOnline()
+      track('setting', { key: 'level', value: l })
       updateSettings({ level: l, mode: 'bot' })
       newRound()
       close()
@@ -287,7 +328,10 @@ export default function App() {
   }
   const goOnline = (c: string, keepSheet: boolean) =>
     guard(() => {
-      if (isOnline) online.leave()
+      if (isOnline) {
+        abandon()
+        online.leave()
+      }
       setCode(c)
       updateSettings({ mode: 'online' })
       setSheet(keepSheet ? { id: 'online' } : null)
@@ -324,6 +368,7 @@ export default function App() {
     if (!undoPlies) return
     setGame((g) => undo(g, undoPlies))
     playSound('undo')
+    track('undo', { mode })
   }
 
   const onColumn = (col: number) => {
@@ -357,6 +402,7 @@ export default function App() {
     if (now - lastSent.current < 1500) return
     lastSent.current = now
     online.react(id)
+    track('reaction')
     close()
     setCooling(true)
     setTimeout(() => setCooling(false), 1500)
@@ -376,6 +422,9 @@ export default function App() {
   let statusPlayer: Player | null = state.turn
   const offline = !netOnline || online.link === 'offline'
   const roomFull = isOnline && !!online.error && !room
+  useEffect(() => {
+    if (roomFull) track('room_full')
+  }, [roomFull])
   if (isOnline && offline && !over) {
     statusText = "You're offline"
     statusPlayer = null
@@ -492,6 +541,7 @@ export default function App() {
         primaryOff: mine || !oppSeat,
         onPrimary: () => {
           online.rematch()
+          track('rematch')
           freshGame()
         },
         secondary: 'Leave',
@@ -726,8 +776,14 @@ export default function App() {
             offline={!netOnline}
             code={isOnline ? code : null}
             waiting={room?.status !== 'playing'}
-            onCreate={() => goOnline(randomCode(), true)}
-            onJoin={(c) => goOnline(c, false)}
+            onCreate={() => {
+              track('room_create')
+              goOnline(randomCode(), true)
+            }}
+            onJoin={(c) => {
+              track('room_join')
+              goOnline(c, false)
+            }}
             onShare={share}
             onLeave={() => switchMode('bot')}
             onClose={close}

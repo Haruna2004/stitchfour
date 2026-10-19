@@ -17,6 +17,7 @@ export interface Settings {
   theme: ThemePref
   sound: boolean
   haptics: boolean
+  analytics: boolean // share anonymous usage stats
   name: string
   clientId: string // stable id so the online room can give your seat back after a reconnect
   stats: {
@@ -37,6 +38,7 @@ function defaults(): Settings {
     theme: 'system',
     sound: true,
     haptics: true,
+    analytics: true,
     name: randomName(),
     clientId: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
     stats: { bot: { easy: empty(), medium: empty(), hard: empty() }, online: empty(), streak: 0, best: 0 },

@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "textures": "bun scripts/gen-fabric.ts",
     "deploy": "bun run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "stats": "bun scripts/stats.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

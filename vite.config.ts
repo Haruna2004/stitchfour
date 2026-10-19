@@ -32,7 +32,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,m4a,ogg}'],
         globIgnores: ['**/og-image.png'], // share preview: crawlers only
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/parties\//],
+        navigateFallbackDenylist: [/^\/parties\//, /^\/api\//],
         cleanupOutdatedCaches: true,
       },
     }),

@@ -2,6 +2,8 @@
 // then the screen fades softly and reloads. Mid-game, App shows an "Update ready" patch.
 import { useSyncExternalStore } from 'react'
 import { registerSW } from 'virtual:pwa-register'
+import type { EventMap } from '../shared/events'
+import { flush, track } from './lib/analytics'
 
 export type UpdateStatus = 'none' | 'ready' | 'applying'
 
@@ -60,8 +62,10 @@ function reload() {
 }
 
 /** Fade, activate the waiting worker, reload. Safe to call any time an update is ready. */
-export function applyUpdate() {
+export function applyUpdate(when: EventMap['update_applied']['when'] = 'idle') {
   if (status !== 'ready') return
+  track('update_applied', { when })
+  void flush(true) // the page reloads right away
   set('applying')
   session.set(TRIED_KEY, String(Date.now()))
   setTimeout(() => {
@@ -79,7 +83,7 @@ export function setGameInProgress(v: boolean) {
 
 /** A fresh game is starting (new game, Play again, Rematch, mode switch): good moment to update. */
 export function freshGame() {
-  if (status === 'ready') applyUpdate()
+  if (status === 'ready') applyUpdate('fresh')
 }
 
 function onReady() {
@@ -150,6 +154,7 @@ export async function promptInstall() {
   if (!deferred) return false
   await deferred.prompt()
   const { outcome } = await deferred.userChoice
+  track('install', { outcome })
   deferred = null
   return outcome === 'accepted'
 }

@@ -1,16 +1,15 @@
 import { Server, type Connection } from 'partyserver'
 import { canPlay, fromMoves, other, type Player } from '../shared/game'
 import {
-  REACTIONS,
-  RECONNECT_MS,
   TURN_MS,
   cleanName,
   normalizeCode,
-  type ClientMsg,
-  type EndReason,
+    type EndReason,
   type RoomState,
   type ServerMsg,
 } from '../shared/protocol'
+import { MAX_CONNECTIONS, MAX_MSG_BYTES, byteSize, check, createLimiter, parseClientMsg, type Limiter } from './limits'
+import { dueActions, nextAlarm, type ClockState } from './schedule'
 
 interface SeatRecord {
   clientId: string
@@ -21,6 +20,7 @@ interface SeatRecord {
 interface Stored {
   room: RoomState
   owners: { 1: SeatRecord | null; 2: SeatRecord | null }
+  lastActive: number // epoch ms of the last connect or valid message
 }
 
 type ConnState = { seat: Player | null }
@@ -31,9 +31,10 @@ export class StitchRoom extends Server<Env> {
   static options = { hibernate: true }
 
   data!: Stored
+  limiters = new Map<string, Limiter>() // best effort: lost on hibernation
 
-  async onStart() {
-    this.data = (await this.ctx.storage.get<Stored>('data')) ?? {
+  freshData(): Stored {
+    return {
       room: {
         code: this.name,
         seats: { 1: null, 2: null },
@@ -46,7 +47,13 @@ export class StitchRoom extends Server<Env> {
         round: 1,
       },
       owners: { 1: null, 2: null },
+      lastActive: Date.now(),
     }
+  }
+
+  async onStart() {
+    this.data = (await this.ctx.storage.get<Stored>('data')) ?? this.freshData()
+    this.data.lastActive ??= Date.now() // rooms stored before cleanup existed
   }
 
   onConnect(conn: Connection<ConnState>) {
@@ -54,32 +61,41 @@ export class StitchRoom extends Server<Env> {
       conn.close(1008, 'Invalid room code')
       return
     }
+    if (this.liveCount() > MAX_CONNECTIONS) {
+      conn.close(1008, 'Room busy')
+      return
+    }
+    this.data.lastActive = Date.now()
     conn.setState({ seat: null })
   }
 
   async onMessage(conn: Connection<ConnState>, raw: string | ArrayBuffer | ArrayBufferView) {
-    let msg: ClientMsg
-    try {
-      msg = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw as ArrayBuffer))
-    } catch {
-      return this.send(conn, { t: 'error', code: 'bad-msg', message: 'Bad message' })
-    }
+    const now = Date.now()
+    let limiter = this.limiters.get(conn.id)
+    if (!limiter) this.limiters.set(conn.id, (limiter = createLimiter(now)))
+    const oversize = byteSize(raw) > MAX_MSG_BYTES
+    // Parsing is cheap (<= 1 KB) and gives the type for per-type cooldowns.
+    const msg = oversize ? null : parseClientMsg(typeof raw === 'string' ? raw : new TextDecoder().decode(raw))
+    const verdict = check(limiter, msg?.t ?? '', now)
+    if (verdict === 'abuse') return conn.close(1008, 'Too many messages')
+    if (verdict === 'drop') return
+    if (!msg) return this.badMsg(conn)
+    this.data.lastActive = now
     const seat = conn.state?.seat ?? null
 
     switch (msg.t) {
       case 'hello':
-        return this.hello(conn, String(msg.clientId).slice(0, 64), cleanName(String(msg.name)) || 'Player')
+        if (seat) return
+        return this.hello(conn, msg.clientId, cleanName(msg.name) || 'Player')
       case 'move':
         if (seat) await this.move(conn, seat, msg.col, msg.ply)
         return
       case 'react':
-        if (seat && Number.isInteger(msg.id) && msg.id >= 0 && msg.id < REACTIONS.length) {
-          this.broadcastMsg({ t: 'react', from: seat, id: msg.id })
-        }
+        if (seat) this.broadcastMsg({ t: 'react', from: seat, id: msg.id })
         return
       case 'rename':
         if (seat) {
-          const name = cleanName(String(msg.name))
+          const name = cleanName(msg.name)
           if (!name) return
           this.data.owners[seat]!.name = name
           this.data.room.seats[seat] = { ...this.data.room.seats[seat]!, name }
@@ -96,32 +112,32 @@ export class StitchRoom extends Server<Env> {
   }
 
   async onClose(conn: Connection<ConnState>) {
+    this.limiters.delete(conn.id)
+    if (!normalizeCode(this.name)) return
+    const now = Date.now()
+    this.data.lastActive = now
     const seat = conn.state?.seat
-    if (!seat || this.hasLiveConnection(seat, conn.id)) return
-    const owner = this.data.owners[seat]
-    if (!owner) return
-    owner.goneSince = Date.now()
-    this.data.room.seats[seat] = { name: owner.name, connected: false }
-    await this.commit()
+    const owner = seat ? this.data.owners[seat] : null
+    if (seat && owner && !this.hasLiveConnection(seat, conn.id)) {
+      owner.goneSince = now
+      this.data.room.seats[seat] = { name: owner.name, connected: false }
+      await this.commit(conn.id)
+    } else if (this.liveCount(conn.id) === 0) {
+      await this.commit(conn.id) // last socket gone: arm the cleanup alarm
+    }
   }
 
   async onAlarm() {
     const now = Date.now()
-    const { room, owners } = this.data
-    if (room.status === 'playing') {
-      // Forfeit beats timeout if both are due.
-      for (const p of [1, 2] as Player[]) {
-        const gone = owners[p]?.goneSince
-        if (gone && now - gone >= RECONNECT_MS) {
-          this.finish(other(p), 'forfeit')
-          return this.commit()
-        }
-      }
-      if (room.turnDeadline && now >= room.turnDeadline) {
-        const turn = fromMoves(room.moves, room.starter).turn
-        this.finish(other(turn), 'timeout')
-        return this.commit()
-      }
+    const { room } = this.data
+    const due = dueActions(this.clock(), now)
+    if (due.cleanup) return this.cleanup()
+    // Forfeit beats timeout if both are due.
+    if (due.forfeit) {
+      this.finish(other(due.forfeit), 'forfeit')
+    } else if (due.timeout) {
+      const turn = fromMoves(room.moves, room.starter).turn
+      this.finish(other(turn), 'timeout')
     }
     await this.commit() // reschedules any remaining alarm
   }
@@ -207,17 +223,42 @@ export class StitchRoom extends Server<Env> {
     return false
   }
 
-  async commit() {
-    await this.ctx.storage.put('data', this.data)
-    const due: number[] = []
-    const { room, owners } = this.data
-    if (room.status === 'playing') {
-      if (room.turnDeadline) due.push(room.turnDeadline)
-      for (const p of [1, 2] as Player[]) if (owners[p]?.goneSince) due.push(owners[p]!.goneSince! + RECONNECT_MS)
+  // Sockets currently open, ignoring one that is closing.
+  liveCount(exceptId?: string) {
+    let n = 0
+    for (const c of this.getConnections()) if (c.id !== exceptId) n++
+    return n
+  }
+
+  clock(exceptId?: string): ClockState {
+    const { room, owners, lastActive } = this.data
+    return {
+      status: room.status,
+      turnDeadline: room.turnDeadline,
+      goneSince: { 1: owners[1]?.goneSince ?? null, 2: owners[2]?.goneSince ?? null },
+      lastActive,
+      live: this.liveCount(exceptId),
     }
-    if (due.length) await this.ctx.storage.setAlarm(Math.min(...due))
+  }
+
+  // Idle rooms vanish: wipe storage and start over so the code can be reused.
+  async cleanup() {
+    await this.ctx.storage.deleteAlarm()
+    await this.ctx.storage.deleteAll()
+    this.data = this.freshData()
+    this.limiters.clear()
+  }
+
+  async commit(closingId?: string) {
+    await this.ctx.storage.put('data', this.data)
+    const at = nextAlarm(this.clock(closingId))
+    if (at !== null) await this.ctx.storage.setAlarm(at)
     else await this.ctx.storage.deleteAlarm()
-    for (const c of this.getConnections<ConnState>()) this.sendState(c)
+    for (const c of this.getConnections<ConnState>()) if (c.id !== closingId) this.sendState(c)
+  }
+
+  badMsg(conn: Connection) {
+    this.send(conn, { t: 'error', code: 'bad-msg', message: 'Bad message' })
   }
 
   sendState(conn: Connection<ConnState>) {

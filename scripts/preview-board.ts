@@ -7,7 +7,7 @@ import { PALETTE, type Theme } from '../src/render/palette'
 import { cellCenter, drawBoard, layoutFor } from '../src/render/hoop'
 import { DISC, drawPiece } from '../src/render/pieces'
 import { drawStitches, type Ctx, type Stitch } from '../src/render/thread'
-import { winStitches } from '../src/render/winpath'
+import { winBelt } from '../src/render/winpath'
 import type { Player } from '../shared/game'
 
 const root = join(import.meta.dir, '..')
@@ -63,7 +63,7 @@ for (const theme of ['light', 'dark'] as Theme[]) {
 
   // win thread (the app draws this as SVG with the same geometry)
   const pts = win.map((w) => cellCenter(l, w.col, w.row))
-  const ws = winStitches(pts, l.cell)
+  const ws = winBelt(pts, l.cell)
   drawStitches(ctx, ws.stitches.map((s) => [s.x1, s.y1, s.x2, s.y2] as Stitch), {
     color: pal.win, width: ws.width, pal, tone: 0.04, shadow: 1.2,
   })

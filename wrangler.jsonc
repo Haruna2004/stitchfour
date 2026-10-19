@@ -5,7 +5,8 @@
   "compatibility_date": "2026-10-01",
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/parties/*"]
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/parties/*"]
   },
   "durable_objects": {
     "bindings": [{ "name": "StitchRoom", "class_name": "StitchRoom" }]

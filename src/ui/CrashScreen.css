@@ -1,0 +1,176 @@
+/* Crash screen: a fabric card on linen, with a snapped thread. */
+.crash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + 16px)
+    calc(env(safe-area-inset-bottom) + 24px) calc(env(safe-area-inset-left) + 16px);
+}
+
+.crash-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 26px 30px 22px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(46, 30, 12, 0.24), 0 2px 8px rgba(46, 30, 12, 0.12);
+}
+[data-theme='dark'] .crash-card {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.crash-card::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1.5px dashed var(--stitch);
+  border-radius: 13px;
+  pointer-events: none;
+}
+
+.crash-art {
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 6px;
+  overflow: visible;
+}
+
+.crash-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.crash-text {
+  margin: 10px 0 22px;
+  max-width: 290px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.crash-btn {
+  position: relative;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--primary-ink);
+  background-color: var(--primary);
+  box-shadow: var(--lift);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.crash-btn::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.5px dashed color-mix(in srgb, var(--primary-ink) 45%, transparent);
+  border-radius: 9px;
+  pointer-events: none;
+}
+.crash-btn:active {
+  transform: translateY(1px);
+  box-shadow: var(--lift-press);
+}
+.crash-link {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--ink-3);
+  text-decoration: underline dashed;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.crash-details {
+  margin-top: 6px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.crash-details summary {
+  display: inline-block;
+  padding: 4px 8px;
+  cursor: pointer;
+  list-style: none;
+  opacity: 0.8;
+}
+.crash-details summary::-webkit-details-marker {
+  display: none;
+}
+.crash-details summary::before {
+  content: '+ ';
+}
+.crash-details[open] summary::before {
+  content: '\2013  ';
+}
+.crash-details code {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px dashed var(--stitch-soft);
+  border-radius: 8px;
+  text-align: left;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* gentle sway: the loose end drifts, the stitch line breathes */
+@media (prefers-reduced-motion: no-preference) {
+  .crash-tail {
+    transform-origin: 186px 82px;
+    animation: crash-sway 4.2s ease-in-out infinite;
+  }
+  .crash-x {
+    transform-origin: 157px 47px;
+    animation: crash-bob 5.6s ease-in-out infinite;
+  }
+  .crash-card {
+    animation: crash-in 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  }
+}
+@keyframes crash-sway {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes crash-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(6deg);
+  }
+}
+@keyframes crash-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}

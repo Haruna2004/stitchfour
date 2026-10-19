@@ -30,6 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,m4a,ogg}'],
+        globIgnores: ['**/og-image.png'], // share preview: crawlers only
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/parties\//],
         cleanupOutdatedCaches: true,

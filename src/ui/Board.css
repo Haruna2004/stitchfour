@@ -39,3 +39,47 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
   border-radius: 12px;
 }
+
+/* win belt: each stitch draws in turn (delays set inline) */
+.win-thread .ws {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation: ws-draw var(--d) linear var(--t) forwards;
+}
+.win-thread .wh {
+  opacity: 0;
+  animation: ws-fade 0.18s ease-out var(--t) forwards;
+}
+.win-thread .wh.is-end {
+  animation-delay: calc(var(--t) + var(--d) * 0.8);
+}
+@keyframes ws-draw {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+  1% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ws-fade {
+  to {
+    opacity: 1;
+  }
+}
+.win-thread.is-reduced {
+  animation: ws-fade 0.3s ease-out both;
+  opacity: 0;
+}
+.win-thread.is-reduced .ws,
+.win-thread.is-reduced .wh {
+  animation: none;
+  opacity: 1;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+}

@@ -77,133 +77,144 @@
   transform: rotate(-14deg);
 }
 
-/* --- turn status --- */
+/* --- turn status: coloured text + stitched underline --- */
 .status {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 1px;
+  --ul: var(--ink-3);
 }
-.status-piece {
-  position: relative;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
+.status.is-p1 {
+  --ul: var(--thread-red);
 }
-.status-piece > img,
-.status-piece > .status-hole {
-  grid-area: 1 / 1;
-  display: block;
-}
-.status-hole {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1.5px dashed var(--stitch);
-}
-.status-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.status-overlay svg {
-  display: block;
+.status.is-p2 {
+  --ul: var(--thread-gold);
 }
 .status-text-wrap {
   position: relative;
+  max-width: 100%;
   min-width: 0;
   display: flex;
+  justify-content: center;
 }
 .status-text {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 18px;
+  line-height: 24px;
   letter-spacing: 0.005em;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.3s ease;
 }
-
-/* online timer: stitched ring that unwinds */
-.timer-holes {
-  stroke: var(--stitch);
+.status-text.is-p1 {
+  color: var(--thread-red-ink);
 }
-.timer-shadow {
-  stroke: rgba(60, 40, 20, 0.22);
+.status-text.is-p2 {
+  color: var(--thread-gold-ink);
 }
-[data-theme='dark'] .timer-shadow {
-  stroke: rgba(0, 0, 0, 0.45);
+.status-line {
+  position: relative;
+  max-width: 100%;
+  height: 8px;
+  transition: width 0.3s ease;
 }
-.timer-thread {
-  stroke: var(--sage);
-  transition: stroke 0.5s ease;
+.status-line-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
 }
-.timer-twist {
-  stroke: rgba(255, 252, 240, 0.5);
+.status-line svg {
+  display: block;
+  overflow: hidden;
 }
-.timer-ring.is-low .timer-thread {
-  stroke: var(--thread-red);
-}
-.timer-ring.is-low {
-  animation: timer-pulse 1s ease-in-out infinite;
-}
-@keyframes timer-pulse {
-  50% {
-    transform: scale(1.06);
-  }
-}
-
-/* computer thinking: loose thread winding round the piece */
-.swirl path {
+.status-line line,
+.status-line path {
   fill: none;
   stroke-linecap: round;
-  animation: swirl-wind 1.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-.swirl-spin {
-  transform-origin: 22px 22px;
-  animation: swirl-spin 3.2s linear infinite;
+.ul-thread {
+  stroke: var(--ul);
+  stroke-width: 2.4;
+  transition: stroke 0.35s ease;
 }
-.swirl-shadow {
-  stroke: rgba(60, 40, 20, 0.26);
-  stroke-width: 2.6;
-  transform: translate(0.6px, 0.9px);
-}
-[data-theme='dark'] .swirl-shadow {
-  stroke: rgba(0, 0, 0, 0.5);
-}
-.swirl-thread {
-  stroke: color-mix(in srgb, var(--thread-gold) 82%, #6b4a10);
+.ul-shadow {
+  stroke: rgba(60, 40, 20, 0.24);
   stroke-width: 2.6;
 }
-[data-theme='dark'] .swirl-thread {
-  stroke: var(--thread-gold);
+[data-theme='dark'] .ul-shadow {
+  stroke: rgba(0, 0, 0, 0.45);
 }
-.swirl-twist {
-  stroke: rgba(255, 250, 230, 0.55);
+.ul-twist {
+  stroke: rgba(255, 252, 240, 0.5);
   stroke-width: 0.8;
 }
-@keyframes swirl-spin {
-  to {
-    transform: rotate(360deg);
+.ul-stitch {
+  opacity: 0.92;
+}
+
+/* online timer: stitches unpick from the right */
+.ul-timer {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.ul-holes {
+  position: absolute;
+  inset: 0;
+}
+.ul-holes line {
+  stroke: var(--ink-3);
+  stroke-width: 1.7;
+  opacity: 0.6;
+}
+.ul-clip {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  transition: width 0.25s ease;
+}
+.ul-timer.is-low {
+  --ul: var(--thread-red);
+  animation: ul-pulse 1s ease-in-out infinite;
+}
+@keyframes ul-pulse {
+  50% {
+    opacity: 0.55;
   }
 }
-@keyframes swirl-wind {
-  0% {
-    stroke-dasharray: 14 86;
-    stroke-dashoffset: 0;
+
+/* computer thinking: a loose gold thread waving along */
+.ul-loose {
+  --ul: var(--thread-gold);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+.ul-wave {
+  animation: ul-travel 3.2s linear infinite;
+}
+.ul-loose .ul-thread {
+  stroke-dasharray: 10 4;
+  animation: ul-flow 3.2s linear infinite;
+}
+.ul-loose .ul-twist {
+  stroke-dasharray: 1.4 12.6;
+  animation: ul-flow 3.2s linear infinite;
+}
+@keyframes ul-travel {
+  to {
+    transform: translateX(-28px);
   }
-  50% {
-    stroke-dasharray: 62 38;
-    stroke-dashoffset: -30;
-  }
-  100% {
-    stroke-dasharray: 14 86;
-    stroke-dashoffset: -100;
+}
+@keyframes ul-flow {
+  to {
+    stroke-dashoffset: -28;
   }
 }
 
@@ -564,6 +575,10 @@
   grid-template-columns: 1fr 1.4fr;
   gap: 8px;
 }
+.result-btns .btn {
+  padding: 0 12px;
+  white-space: nowrap;
+}
 
 /* --- shared buttons --- */
 .btn {
@@ -709,13 +724,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .swirl-spin {
-    animation-duration: 8s;
+  .ul-wave,
+  .ul-loose .ul-thread,
+  .ul-loose .ul-twist {
+    animation-duration: 9s;
   }
-  .swirl path {
-    animation-duration: 4s;
-  }
-  .timer-ring.is-low {
+  .ul-timer.is-low {
     animation: none;
   }
 }

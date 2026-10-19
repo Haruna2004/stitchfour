@@ -112,13 +112,10 @@ public/            icons, textures, sounds, manifest
 ```
 
 ## Open topics (keep discussing)
-- In-game layout: exact placement of on-screen controls + menu style
-- Thread-swirl thinking animation details
-- Final name + icon
-- Dark theme fabric choice
-- Sound sourcing: find/record samples (drop x3, tick, win, lose, draw, snip, undo, tap, react) into public/sounds/*.mp3
-- Reaction phrase/emoji final list
-- Easy/medium/hard profile emojis + colours
+- Sound: CC0 samples chosen (v1); fine-tune picks after testing
+- Reaction phrase/emoji list: keep current for now, revisit later
+
+Settled: layout, thinking animation, dark fabric, name "Stitch Four" + icon, difficulty emojis (🌱 🌿 🌳).
 
 ---
 
@@ -128,3 +125,8 @@ Separate from the bot. "AI" = LLM opponents that play using their reasoning, not
 - Ideas: pick your opponent model; show its reasoning/trash talk per move; model vs model spectator mode
 - Needs network + API keys → server-side proxy, not offline
 - Keep `src/bot/` and a future `src/ai/` clearly separate
+
+## Later (after v1): Voice chat
+Live voice call between the two players in an online room (talk while playing).
+- Likely WebRTC peer-to-peer audio, signalled through the existing StitchRoom socket; TURN server for strict NATs (e.g. Cloudflare Realtime/Calls)
+- Mic permission prompt only when a player taps "Talk"; mute toggle; clear indicator when the other side is speaking

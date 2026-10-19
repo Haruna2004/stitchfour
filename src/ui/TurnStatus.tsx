@@ -1,103 +1,116 @@
-// Centre of the control row: small piece + turn text, with the online timer
-// (a stitched ring that unwinds) or the computer's swirling thread around it.
-import { useEffect, useId, useMemo, useRef } from 'react'
+// Centre of the control row: turn text coloured by player, with a stitched underline.
+// Online it doubles as the turn timer (stitches unpick from the right); while the
+// computer thinks it becomes a loose, gently waving thread.
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import type { Player } from '../../shared/game'
-import type { Theme } from '../lib/theme'
-import { getPieceSprite } from '../render/pieces'
 
 interface Props {
   player: Player | null
   text: string
-  theme: Theme
   thinking?: boolean
   /** Local epoch ms when the turn runs out (online only). */
   deadline?: number | null
   total?: number
 }
 
-const PIECE = 26
-const dpr = () => Math.min(3, window.devicePixelRatio || 1)
+const PERIOD = 9 // px per stitch + gap
+const H = 8
 
-export function TurnStatus({ player, text, theme, thinking = false, deadline = null, total = 60_000 }: Props) {
+export function TurnStatus({ player, text, thinking = false, deadline = null, total = 60_000 }: Props) {
   const reduce = useReducedMotion() ?? false
-  const src = useMemo(() => (player ? getPieceSprite(player, theme, PIECE, dpr()) : null), [player, theme])
+  const wrapRef = useRef<HTMLSpanElement>(null)
+  const [w, setW] = useState(0)
+
+  // underline follows the current text width (exiting text is popped out of flow)
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.offsetWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const tone = player === 1 ? 'is-p1' : player === 2 ? 'is-p2' : 'is-none'
+  const kind = thinking ? 'think' : deadline !== null ? 'timer' : player ? 'stitch' : 'none'
+  // whole stitches, centred under the text
+  const lineW = Math.max(PERIOD * 3, Math.round(w / PERIOD) * PERIOD)
+
   return (
-    <div className="status" role="status" aria-live="polite">
-      <span className="status-piece">
-        <AnimatePresence initial={false} mode="popLayout">
-          {src ? (
-            <motion.img
-              key={`${player}-${theme}`}
-              src={src}
-              width={PIECE}
-              height={PIECE}
-              alt=""
-              initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0, y: -6 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { scale: 0.6, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 520, damping: 30 }}
-            />
-          ) : (
-            <motion.span key="empty" className="status-hole" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {thinking && (
-            <motion.span
-              key="swirl"
-              className="status-overlay"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              transition={{ duration: 0.25 }}
-            >
-              <ThreadSwirl />
-            </motion.span>
-          )}
-        </AnimatePresence>
-        {deadline !== null && (
-          <span className="status-overlay">
-            <TimerRing deadline={deadline} total={total} />
-          </span>
-        )}
-      </span>
-      <span className="status-text-wrap">
+    <div className={`status ${tone}`} role="status" aria-live="polite">
+      <span ref={wrapRef} className="status-text-wrap">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.span
             key={text}
-            className="status-text"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            className={`status-text ${tone}`}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: 0.24, ease: 'easeOut' }}
           >
             {text}
           </motion.span>
+        </AnimatePresence>
+      </span>
+      <span className="status-line" style={{ width: lineW }} aria-hidden>
+        <AnimatePresence initial={false}>
+          {kind !== 'none' && (
+            <motion.span
+              key={kind}
+              className="status-line-layer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {kind === 'think' ? (
+                <LooseThread />
+              ) : kind === 'timer' ? (
+                <TimerStitch deadline={deadline as number} total={total} width={lineW} />
+              ) : (
+                <Stitches width={lineW} />
+              )}
+            </motion.span>
+          )}
         </AnimatePresence>
       </span>
     </div>
   )
 }
 
-const BOX = 44
-const R = 18.5
-const C = 2 * Math.PI * R
+const LONG = 320 // drawn wide, clipped to the line width
 
-/** Stitched thread that unwinds as the turn clock runs down. Updated per frame without re-rendering. */
-function TimerRing({ deadline, total }: { deadline: number; total: number }) {
-  const id = useId()
-  const maskRef = useRef<SVGCircleElement>(null)
-  const rootRef = useRef<SVGSVGElement>(null)
+/** Running stitch with shadow + twist highlight. */
+function Stitches({ width }: { width: number }) {
+  const y = H / 2
+  const dash = `${PERIOD - 3} 3`
+  return (
+    <svg className="ul-stitch" width={width} height={H} aria-hidden>
+      <line className="ul-shadow" x1={1.8} y1={y + 0.8} x2={LONG} y2={y + 0.8} strokeDasharray={dash} />
+      <line className="ul-thread" x1={1.3} y1={y} x2={LONG} y2={y} strokeDasharray={dash} />
+      <line className="ul-twist" x1={2.2} y1={y - 0.45} x2={LONG} y2={y - 0.45} strokeDasharray={`1.4 ${PERIOD - 1.4}`} />
+    </svg>
+  )
+}
+
+/** Timer: stitches unpick one by one from the right, leaving needle holes. Per-frame, no re-render. */
+function TimerStitch({ deadline, total, width }: { deadline: number; total: number; width: number }) {
+  const rootRef = useRef<HTMLSpanElement>(null)
+  const clipRef = useRef<HTMLSpanElement>(null)
   const label = useRef<HTMLSpanElement>(null)
+  const count = Math.max(1, Math.round(width / PERIOD))
 
   useEffect(() => {
     let raf = 0
     let lastSec = -1
+    let lastN = -1
     const tick = () => {
       const left = Math.max(0, deadline - Date.now())
-      const f = Math.min(1, left / total)
-      maskRef.current?.setAttribute('stroke-dasharray', `${(f * C).toFixed(2)} ${C.toFixed(2)}`)
+      const n = Math.ceil(Math.min(1, left / total) * count)
+      if (n !== lastN && clipRef.current) {
+        lastN = n
+        clipRef.current.style.width = `${n * PERIOD}px`
+      }
       const sec = Math.ceil(left / 1000)
       if (sec !== lastSec) {
         lastSec = sec
@@ -108,57 +121,37 @@ function TimerRing({ deadline, total }: { deadline: number; total: number }) {
     }
     tick()
     return () => cancelAnimationFrame(raf)
-  }, [deadline, total])
+  }, [deadline, total, count])
 
   return (
-    <>
-      <svg ref={rootRef} className="timer-ring" width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} aria-hidden>
-        <defs>
-          <mask id={`${id}m`}>
-            <circle
-              ref={maskRef}
-              cx={BOX / 2}
-              cy={BOX / 2}
-              r={R}
-              fill="none"
-              stroke="#fff"
-              strokeWidth="6"
-              transform={`rotate(-90 ${BOX / 2} ${BOX / 2})`}
-            />
-          </mask>
-        </defs>
-        {/* needle holes left behind */}
-        <circle className="timer-holes" cx={BOX / 2} cy={BOX / 2} r={R} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeDasharray={`0.01 ${C / 36}`} />
-        <g mask={`url(#${id}m)`}>
-          <circle className="timer-shadow" cx={BOX / 2 + 0.5} cy={BOX / 2 + 0.7} r={R} fill="none" strokeWidth="3.2" strokeDasharray={`${C / 36 - 1.4} 1.4`} />
-          <circle className="timer-thread" cx={BOX / 2} cy={BOX / 2} r={R} fill="none" strokeWidth="3.2" strokeDasharray={`${C / 36 - 1.4} 1.4`} />
-          <circle className="timer-twist" cx={BOX / 2} cy={BOX / 2} r={R} fill="none" strokeWidth="0.9" strokeDasharray={`1.2 ${C / 36 - 1.2}`} strokeDashoffset="-0.6" />
-        </g>
+    <span ref={rootRef} className="ul-timer">
+      <svg className="ul-holes" width={width} height={H} aria-hidden>
+        <line x1={1.3} y1={H / 2} x2={LONG} y2={H / 2} strokeDasharray={`0 ${PERIOD - 3} 0 3`} />
       </svg>
+      <span ref={clipRef} className="ul-clip">
+        <Stitches width={width} />
+      </span>
       <span ref={label} className="sr-only" />
-    </>
+    </span>
   )
 }
 
-// A wobbly three-lobed loop, like loose thread being wound around the piece.
-const SWIRL_PATH = (() => {
+// Soft sine thread, two wavelengths longer than needed so it can travel.
+const WAVE = 28
+const WAVE_PATH = (() => {
   const pts: string[] = []
-  const n = 96
-  for (let i = 0; i <= n; i++) {
-    const t = (i / n) * Math.PI * 2
-    const r = 18.2 + 2.4 * Math.sin(3 * t + 0.6) + 0.8 * Math.sin(5 * t)
-    pts.push(`${(BOX / 2 + r * Math.cos(t)).toFixed(2)} ${(BOX / 2 + r * Math.sin(t)).toFixed(2)}`)
-  }
-  return `M${pts.join('L')}Z`
+  for (let x = -WAVE; x <= LONG + WAVE; x += 2) pts.push(`${x} ${(H / 2 + 1.5 * Math.sin((x / WAVE) * Math.PI * 2)).toFixed(2)}`)
+  return `M${pts.join('L')}`
 })()
 
-function ThreadSwirl() {
+/** Computer thinking: a loose thread that waves and flows along. */
+function LooseThread() {
   return (
-    <svg className="swirl" width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} aria-hidden>
-      <g className="swirl-spin">
-        <path className="swirl-shadow" d={SWIRL_PATH} pathLength={100} />
-        <path className="swirl-thread" d={SWIRL_PATH} pathLength={100} />
-        <path className="swirl-twist" d={SWIRL_PATH} pathLength={100} />
+    <svg className="ul-loose" width="100%" height={H} aria-hidden>
+      <g className="ul-wave">
+        <path className="ul-shadow" d={WAVE_PATH} transform="translate(0.5 0.8)" />
+        <path className="ul-thread" d={WAVE_PATH} />
+        <path className="ul-twist" d={WAVE_PATH} transform="translate(0 -0.4)" />
       </g>
     </svg>
   )

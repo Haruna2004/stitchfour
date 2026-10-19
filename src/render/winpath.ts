@@ -1,51 +1,73 @@
-// Geometry for the winning thread: a gently curved running stitch through the 4 centres.
+// Geometry for the winning belt: a running stitch around a capsule that hugs the winning pieces.
 export interface Pt { x: number; y: number }
 export interface WinStitch { x1: number; y1: number; x2: number; y2: number }
 
-export function winStitches(pts: Pt[], cell: number) {
-  const a = pts[0]
-  const b = pts[pts.length - 1]
-  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
-  const ux = (b.x - a.x) / len
-  const uy = (b.y - a.y) / len
-  const ext = cell * 0.42
-  const p0 = { x: a.x - ux * ext, y: a.y - uy * ext }
-  const p2 = { x: b.x + ux * ext, y: b.y + uy * ext }
-  // tiny natural sag, perpendicular to the line
-  const bow = cell * 0.14
-  const p1 = { x: (p0.x + p2.x) / 2 - uy * bow, y: (p0.y + p2.y) / 2 + ux * bow }
-  const at = (t: number) => ({
-    x: (1 - t) * (1 - t) * p0.x + 2 * (1 - t) * t * p1.x + t * t * p2.x,
-    y: (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y,
-  })
-  // arc-length table
-  const N = 120
-  const table: { t: number; s: number }[] = [{ t: 0, s: 0 }]
-  let prev = at(0)
-  let total = 0
-  for (let i = 1; i <= N; i++) {
-    const p = at(i / N)
-    total += Math.hypot(p.x - prev.x, p.y - prev.y)
-    table.push({ t: i / N, s: total })
-    prev = p
+/** Point on a capsule loop (axis a→b, radius r) at arc length s, starting behind a. */
+function capsule(a: Pt, b: Pt, r: number) {
+  const L = Math.hypot(b.x - a.x, b.y - a.y)
+  const ux = L ? (b.x - a.x) / L : 1
+  const uy = L ? (b.y - a.y) / L : 0
+  // left normal (screen coords)
+  const nx = uy
+  const ny = -ux
+  const arc = Math.PI * r
+  const q = arc / 2 // quarter cap
+  const total = 2 * L + 2 * arc
+  const at = (s: number): Pt => {
+    s = ((s % total) + total) % total
+    // 1) quarter cap at a, from the back tip round to the left side
+    if (s < q) return round(a, -1, s / r)
+    s -= q
+    // 2) left side a→b
+    if (s < L) return { x: a.x + nx * r + ux * s, y: a.y + ny * r + uy * s }
+    s -= L
+    // 3) full cap at b, left → right
+    if (s < arc) return round(b, 1, s / r)
+    s -= arc
+    // 4) right side b→a
+    if (s < L) return { x: b.x - nx * r - ux * s, y: b.y - ny * r - uy * s }
+    s -= L
+    // 5) remaining quarter cap at a, back to the tip
+    return round(a, -1, 1.5 * Math.PI + s / r)
   }
-  const tAt = (s: number) => {
-    const i = table.findIndex((e) => e.s >= s)
-    if (i <= 0) return i === 0 ? 0 : 1
-    const e0 = table[i - 1]
-    const e1 = table[i]
-    return e0.t + ((s - e0.s) / (e1.s - e0.s || 1)) * (e1.t - e0.t)
+  // angle t measured from the cap's starting point
+  function round(c: Pt, end: 1 | -1, t: number): Pt {
+    // at a: start at the back tip (-u) and sweep toward +n; at b: start at +n and sweep toward +u, -n
+    const sx = end === -1 ? -ux : nx
+    const sy = end === -1 ? -uy : ny
+    const ex = end === -1 ? nx : ux
+    const ey = end === -1 ? ny : uy
+    return { x: c.x + r * (sx * Math.cos(t) + ex * Math.sin(t)), y: c.y + r * (sy * Math.cos(t) + ey * Math.sin(t)) }
   }
-  const stitchLen = cell * 0.34
-  const gapLen = cell * 0.16
-  const count = Math.max(1, Math.floor((total + gapLen) / (stitchLen + gapLen)))
-  const pad = (total - (count * stitchLen + (count - 1) * gapLen)) / 2
+  return { at, total }
+}
+
+export function winBelt(pts: Pt[], cell: number) {
+  // endpoints = extreme projections along the line
+  const a0 = pts[0]
+  const b0 = pts[pts.length - 1]
+  const dx = b0.x - a0.x
+  const dy = b0.y - a0.y
+  let a = a0
+  let b = b0
+  for (const p of pts) {
+    const t = (p.x - a0.x) * dx + (p.y - a0.y) * dy
+    if (t < (a.x - a0.x) * dx + (a.y - a0.y) * dy) a = p
+    if (t > (b.x - a0.x) * dx + (b.y - a0.y) * dy) b = p
+  }
+  const r = cell * 0.53
+  const { at, total } = capsule(a, b, r)
+  // whole number of stitches so the loop closes evenly
+  const period = cell * 0.36
+  const count = Math.max(8, Math.round(total / period))
+  const step = total / count
+  const len = step * 0.7
   const stitches: WinStitch[] = []
   for (let i = 0; i < count; i++) {
-    const s0 = pad + i * (stitchLen + gapLen)
-    const q0 = at(tAt(s0))
-    const q1 = at(tAt(s0 + stitchLen))
-    stitches.push({ x1: q0.x, y1: q0.y, x2: q1.x, y2: q1.y })
+    const s0 = i * step + (step - len) / 2
+    const p = at(s0)
+    const q = at(s0 + len)
+    stitches.push({ x1: p.x, y1: p.y, x2: q.x, y2: q.y })
   }
-  return { stitches, width: Math.max(2, cell * 0.11) }
+  return { stitches, width: Math.max(2, cell * 0.105) }
 }

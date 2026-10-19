@@ -12,7 +12,10 @@
   --sage: #5b8a6a;
   --thread-red: #c9413b;
   --thread-gold: #e2a62f;
-  --thread-win: #467a5c;
+  /* deeper text-only shades for contrast on light linen */
+  --thread-red-ink: #b3342e;
+  --thread-gold-ink: #946207;
+  --thread-win: #2c4a72;
   --focus-ring: rgba(91, 138, 106, 0.55);
   --shadow: 0 4px 16px rgba(60, 50, 30, 0.12), 0 1px 3px rgba(60, 50, 30, 0.08);
   --radius: 14px;
@@ -32,7 +35,9 @@
   --sage: #8fc4a0;
   --thread-red: #e6584e;
   --thread-gold: #f2ba42;
-  --thread-win: #96d2aa;
+  --thread-red-ink: #f06a5f;
+  --thread-gold-ink: #f2ba42;
+  --thread-win: #f4ecd8;
   --focus-ring: rgba(150, 210, 170, 0.5);
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
 }

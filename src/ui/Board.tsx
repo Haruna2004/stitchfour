@@ -8,7 +8,7 @@ import { COLS, ROWS, canPlay, type GameState, type Player, type Pos } from '../.
 import { cellCenter, drawBoard, fitLayout, type Layout } from '../render/hoop'
 import { PALETTE } from '../render/palette'
 import { getPieceSprite } from '../render/pieces'
-import { WinThread } from './WinThread'
+import { WIN_SEW, WinThread } from './WinThread'
 import './Board.css'
 
 export type Theme = 'light' | 'dark'
@@ -103,16 +103,13 @@ export function Board({ state, theme, interactive, onColumn, onLand }: BoardProp
   if (settled > n) setSettled(n)
   const ready = settled >= n
 
-  const [stageScope, animateStage] = useAnimate<HTMLDivElement>()
+  // board stays rigid: only the piece reacts on landing
   const landed = useCallback(
     (p: PieceInfo) => {
       setSettled((s) => Math.max(s, p.index + 1))
       onLand?.(p.col, p.row, p.player)
-      if (!reduce && stageScope.current) {
-        animateStage(stageScope.current, { y: [0, 1.6, -0.4, 0] }, { duration: 0.22, ease: 'easeOut' })
-      }
     },
-    [onLand, reduce, animateStage, stageScope],
+    [onLand],
   )
 
   // aim / input
@@ -174,7 +171,6 @@ export function Board({ state, theme, interactive, onColumn, onLand }: BoardProp
     <div ref={rootRef} className="board-root">
       {layout && sprites && (
         <div
-          ref={stageScope}
           className="board-stage"
           style={{
             width: layout.width,
@@ -275,15 +271,16 @@ function Piece({ p, layout, src, drop, dim, pulse, reduce, onLanded }: PieceProp
       await animate(el, { y: 0 }, { duration: 0.18 + 0.05 * rows, ease: [0.55, 0, 1, 0.45] })
       if (!live) return
       landedRef.current(p)
-      const b = size * 0.09
+      // weighty landing: firm squash, one small hop, a tiny settle
+      const b = size * 0.06
       await animate(
         el,
         {
-          y: [0, -b, 0, -b * 0.3, 0],
-          scaleY: [0.86, 1.04, 0.97, 1.01, 1],
-          scaleX: [1.1, 0.97, 1.02, 1, 1],
+          y: [0, 0, -b, 0, -b * 0.22, 0],
+          scaleY: [1, 0.84, 1.03, 0.96, 1.005, 1],
+          scaleX: [1, 1.12, 0.98, 1.03, 1, 1],
         },
-        { duration: 0.34, times: [0, 0.32, 0.6, 0.8, 1], ease: 'easeOut' },
+        { duration: 0.42, times: [0, 0.1, 0.36, 0.62, 0.82, 1], ease: 'easeOut' },
       )
     }
     run()
@@ -297,8 +294,8 @@ function Piece({ p, layout, src, drop, dim, pulse, reduce, onLanded }: PieceProp
     if (!pulse || !scope.current) return
     animate(
       scope.current,
-      { scale: reduce ? 1 : [1, 1.1, 1] },
-      { duration: 0.6, delay: 0.25, ease: 'easeInOut' },
+      { scale: reduce ? 1 : [1, 1.07, 1] },
+      { duration: 0.6, delay: reduce ? 0 : WIN_SEW + 0.1, ease: 'easeInOut' },
     )
   }, [pulse, reduce, animate, scope])
 

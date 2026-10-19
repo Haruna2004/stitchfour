@@ -52,6 +52,8 @@ const devParams = import.meta.env.DEV ? new URLSearchParams(location.search) : n
 const devMoves = devParams?.get('moves')?.split(',').filter(Boolean).map(Number) ?? []
 const devMode = devParams?.get('mode') as Mode | null
 const devBotDelay = Number(devParams?.get('botDelay')) || undefined
+// ?timer=15 fakes an online turn clock with 15s left
+const devDeadline = devParams?.get('timer') ? Date.now() + Number(devParams.get('timer')) * 1000 : null
 
 // The app always opens vs Computer unless a room link was used.
 updateSettings({ mode: initialRoom ? 'online' : devMode === 'local' ? 'local' : 'bot' })
@@ -364,7 +366,7 @@ export default function App() {
     statusPlayer = null
   } else if (isOnline && room?.status === 'waiting') {
     statusText = 'Waiting for friend…'
-    statusPlayer = you
+    statusPlayer = null
   } else if (outcome) {
     const w = outcome.winner
     statusPlayer = w || null
@@ -533,7 +535,7 @@ export default function App() {
               <UndoIcon />
             </button>
           )}
-          <TurnStatus player={statusPlayer} text={statusText} theme={theme} thinking={thinking} deadline={deadline} total={TURN_MS} />
+          <TurnStatus player={statusPlayer} text={statusText} thinking={thinking} deadline={deadline ?? devDeadline} total={TURN_MS} />
           <button type="button" className="icon-btn is-spool" onClick={() => setSheet({ id: 'menu' })} aria-label="Menu">
             <SpoolIcon />
           </button>

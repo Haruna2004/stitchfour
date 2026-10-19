@@ -1,7 +1,7 @@
 # Stitch Four — Plan
 
 Connect Four, embroidered. Web-based, mobile-first, PWA. Huge focus on aesthetics, feel and sound.
-Name is working title (may change). Hosted at `stitchfour.workers.dev` for now; custom domain later.
+Name is working title (may change). Hosted at `stitchfour.pasoma.ai` (also `stitchfour.hfdev.workers.dev`).
 
 ## Flow
 - No mode picker. App opens straight into a game **vs Computer** (default difficulty).

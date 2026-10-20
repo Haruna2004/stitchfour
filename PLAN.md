@@ -139,6 +139,7 @@ public/            icons, textures, sounds, manifest
 ```
 
 ## Open topics (keep discussing)
+- Game-event analytics (Analytics Engine) is built but OFF: enable Analytics Engine in the Cloudflare dashboard, add back `"analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "stitchfour_events" }]` to wrangler.jsonc, set `VITE_GAME_EVENTS=1`, deploy
 - Sound: CC0 samples chosen (v1); fine-tune picks after testing
 - Reaction phrase/emoji list: keep current for now, revisit later
 

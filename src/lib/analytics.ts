@@ -17,7 +17,9 @@ interface Queued {
   [prop: string]: unknown
 }
 
-// dev: log only, unless ?analytics=1
+// Game events are off unless VITE_GAME_EVENTS=1 at build time (needs Analytics Engine
+// enabled + the EVENTS binding in wrangler.jsonc). Dev: log only, unless ?analytics=1.
+const enabled = import.meta.env.VITE_GAME_EVENTS === '1'
 const send = !import.meta.env.DEV || new URLSearchParams(location.search).has('analytics')
 
 let mem: Queued[] = []
@@ -50,7 +52,7 @@ type Args<E extends EventName> = Record<never, never> extends EventMap[E] ? [pro
 
 export function track<E extends EventName>(e: E, ...args: Args<E>) {
   try {
-    if (!getSettings().analytics) return
+    if (!enabled || !getSettings().analytics) return
     const props = args[0] ?? {}
     if (!send) return console.debug('[analytics]', e, props)
     write([...read(), { ...props, t: Date.now(), e }])

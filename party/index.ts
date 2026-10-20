@@ -22,7 +22,7 @@ export default {
       return code && isHtml ? rewriteInvite(res, url, code) : res
     }
 
-    if (url.pathname === '/api/event') return handleEvent(request, env)
+    if (url.pathname === '/api/event') return handleEvent(request, env as { EVENTS?: AnalyticsEngineDataset }) // binding is optional
     if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 })
 
     // Only canonical room codes get a Durable Object.

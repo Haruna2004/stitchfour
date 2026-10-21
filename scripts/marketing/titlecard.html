@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- Stitch Four title card template. Driven by query params, rendered by titlecards.ts.
+     ?text=Four in a row.&w=1080&h=1920&theme=light|dark&size=124&maxw=0.82&lines=3&accent=1
+     All motion is plain CSS animation (3s), so a recorder can pause + seek it with
+     document.getAnimations(). Open in a browser to preview it live. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stitch Four title card</title>
+<style>
+  @font-face { font-family: 'Lora'; font-weight: 500; font-style: normal;
+    src: url('../../node_modules/@fontsource/lora/files/lora-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Lora'; font-weight: 600; font-style: normal;
+    src: url('../../node_modules/@fontsource/lora/files/lora-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Lora'; font-weight: 400; font-style: italic;
+    src: url('../../node_modules/@fontsource/lora/files/lora-latin-400-italic.woff2') format('woff2'); }
+
+  :root {
+    --dur: 3s;
+    --page: #e8e5da;
+    --fabric: url('../../public/textures/linen-light.webp');
+    --ink: #2a2723;
+    --hem: rgb(146, 126, 104);
+    --red: #c9413b;
+    --gold: #e2a62f;
+    --shadow: 60, 40, 20;
+    --vignette: rgba(80, 60, 30, 0.12);
+  }
+  :root[data-theme='dark'] {
+    --page: #272e46;
+    --fabric: url('../../public/textures/linen-dark.webp');
+    --ink: #ece8df;
+    --hem: #8fa0c6;
+    --red: #e6584e;
+    --gold: #f2ba42;
+    --shadow: 0, 0, 0;
+    --vignette: rgba(5, 8, 20, 0.32);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow: hidden; background: var(--page); }
+  #card {
+    position: relative; overflow: hidden;
+    background-color: var(--page);
+    background-image: var(--fabric);
+    background-repeat: repeat;
+  }
+  #card::after { /* soft vignette */
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, var(--vignette) 130%);
+  }
+  #hem { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #stage {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    animation: stage-out 0.45s ease-in 2.55s both;
+  }
+  #text {
+    font-family: 'Lora', Georgia, serif; font-weight: 600;
+    color: var(--ink); text-align: center; text-wrap: balance;
+    line-height: 1.14; letter-spacing: -0.012em;
+    text-shadow: 0 0.012em 0 rgba(255, 255, 255, 0.35);
+    animation: text-in 0.95s cubic-bezier(.2, .7, .2, 1) 0.25s both;
+  }
+  :root[data-theme='dark'] #text { text-shadow: 0 0.02em 0.04em rgba(0, 0, 0, 0.35); }
+  #stitch { position: relative; }
+  .st { /* one running stitch */
+    position: absolute; transform-origin: 0 50%;
+    background: linear-gradient(to bottom, rgba(255,255,255,.32), rgba(255,255,255,0) 45%, rgba(0,0,0,.16)), var(--red);
+    animation: st-in 0.16s ease-out both;
+  }
+  #cross { position: absolute; animation: cross-in 0.4s cubic-bezier(.3, 1.5, .5, 1) both; }
+  #cross i { position: absolute; left: 0; top: 50%; background: var(--gold); border-radius: 99px;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,.35), rgba(255,255,255,0) 50%, rgba(0,0,0,.14)); }
+  @keyframes text-in {
+    from { opacity: 0; transform: translateY(0.2em); filter: blur(0.05em); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+  }
+  @keyframes st-in {
+    from { opacity: 0; transform: translateX(-30%) scaleX(0.15); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes cross-in { from { opacity: 0; transform: scale(0.2) rotate(-40deg); } to { opacity: 1; transform: none; } }
+  @keyframes stage-out { from { opacity: 1; } to { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="card">
+  <svg id="hem"><rect id="hem-rect" fill="none" stroke-linecap="round"/></svg>
+  <div id="stage"><div id="text"></div><div id="stitch"></div></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search)
+  const W = +(q.get('w') || 1080), H = +(q.get('h') || 1920)
+  const theme = q.get('theme') === 'dark' ? 'dark' : 'light'
+  const text = q.get('text') || 'Four in a row.'
+  const maxw = +(q.get('maxw') || 0.82), maxLines = +(q.get('lines') || 3)
+  const accent = q.get('accent') !== '0'
+  const s = Math.min(W, H) / 1080 // scale unit
+  let size = +(q.get('size') || 124) * s
+
+  document.documentElement.dataset.theme = theme
+  const card = document.getElementById('card')
+  card.style.width = W + 'px'; card.style.height = H + 'px'
+  card.style.backgroundSize = Math.round(384 * s) + 'px'
+
+  // stitched hem
+  const m = Math.round(28 * s)
+  const hr = document.getElementById('hem-rect')
+  const set = (el, o) => Object.entries(o).forEach(([k, v]) => el.setAttribute(k, v))
+  set(hr, { x: m, y: m, width: W - 2 * m, height: H - 2 * m, rx: m * 1.2, stroke: 'currentColor',
+    'stroke-width': 3.2 * s, 'stroke-dasharray': `${13 * s} ${8 * s}` })
+  hr.style.stroke = 'var(--hem)'
+  hr.style.opacity = theme === 'dark' ? 0.8 : 0.9
+
+  const t = document.getElementById('text')
+  t.textContent = text
+  t.style.maxWidth = Math.round(W * maxw) + 'px'
+  const fits = () => {
+    const lines = t.getBoundingClientRect().height / (size * 1.14)
+    return t.scrollWidth <= t.clientWidth + 1 && lines <= maxLines + 0.1
+  }
+
+  function layout() {
+    t.style.fontSize = size + 'px'
+    for (let i = 0; i < 40 && !fits(); i++) { size *= 0.97; t.style.fontSize = size + 'px' }
+    // underline: running stitches, left to right
+    const box = document.getElementById('stitch')
+    box.innerHTML = ''
+    let tw = 0
+    { const r = document.createRange(); r.selectNodeContents(t)
+      for (const rc of r.getClientRects()) tw = Math.max(tw, rc.width) }
+    const th = Math.max(3, size * 0.058), dash = size * 0.22, gap = size * 0.11
+    const period = dash + gap
+    const target = Math.min(tw * 0.72, W * 0.6)
+    const n = Math.max(3, Math.round(target / period))
+    const crossSize = accent ? size * 0.24 : 0
+    const rowW = n * period - gap // dashes only, so they stay centred; the cross hangs off the right end
+    box.style.width = rowW + 'px'; box.style.height = th * 2 + 'px'
+    box.style.marginTop = size * 0.22 + 'px'
+    // tiny deterministic jitter so it reads hand-sewn
+    let seed = 7
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    const start = 1.05, span = 1.0 // seconds
+    for (let i = 0; i < n; i++) {
+      const e = document.createElement('div'); e.className = 'st'
+      const w = dash * (0.94 + rnd() * 0.1)
+      Object.assign(e.style, {
+        left: i * period + 'px', top: th * 0.5 + (rnd() - 0.5) * th * 0.18 + 'px',
+        width: w + 'px', height: th + 'px', borderRadius: th + 'px',
+        transform: `rotate(${(rnd() - 0.5) * 1.4}deg)`,
+        boxShadow: `0 ${th * 0.35}px ${th * 0.5}px rgba(var(--shadow), 0.28)`,
+        animationDelay: start + (i / Math.max(1, n - 1)) * span + 's',
+      })
+      box.appendChild(e)
+    }
+    if (accent) {
+      const c = document.createElement('div'); c.id = 'cross'
+      const cx = n * period - gap + gap * 1.6, cs = crossSize, ct = Math.max(3, size * 0.045)
+      Object.assign(c.style, { left: cx + 'px', top: th + 'px', width: cs + 'px', height: cs + 'px',
+        marginTop: -cs / 2 + 'px', animationDelay: start + span + 0.1 + 's',
+        filter: `drop-shadow(0 ${ct * 0.3}px ${ct * 0.4}px rgba(var(--shadow), 0.3))` })
+      for (const a of [45, -45]) {
+        const b = document.createElement('i')
+        Object.assign(b.style, { width: cs * 1.25 + 'px', height: ct + 'px', marginTop: -ct / 2 + 'px',
+          left: -cs * 0.125 + 'px', transform: `rotate(${a}deg)` })
+        c.appendChild(b)
+      }
+      box.appendChild(c)
+    }
+  }
+  document.fonts.load("600 100px Lora").then(() => document.fonts.ready).then(() => {
+    layout()
+    window.CARD_READY = true
+  })
+</script>
+</body>
+</html>

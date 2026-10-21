@@ -30,3 +30,6 @@ dist-ssr
 .wrangler
 .dev.vars*
 dev-dist
+
+# Marketing renders (regenerate with scripts/marketing)
+marketing/out/

@@ -379,7 +379,10 @@ function layer(L: Layout, bg: string, frames: string, ph: string, base: number, 
 }
 
 async function compose(clip: Clip) {
+  // LAYOUTS=9x16 limits which framings are rendered
+  const pick = process.env.LAYOUTS?.split(',')
   for (const L of LAYOUTS) {
+    if (pick && !pick.includes(L.name)) continue
     const out = join(DEST, `${clip}-${L.name}.mp4`)
     if (clip === 'theme') {
       const ma = meta('theme-light'), mb = meta('theme-dark')

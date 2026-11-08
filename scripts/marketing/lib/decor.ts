@@ -105,7 +105,7 @@ export async function renderDecor(d: Decor): Promise<Buffer> {
   // soft vignette for depth
   const g = ctx.createRadialGradient((d.w * S) / 2, (d.h * S) / 2, Math.min(d.w, d.h) * S * 0.3, (d.w * S) / 2, (d.h * S) / 2, Math.max(d.w, d.h) * S * 0.75)
   g.addColorStop(0, 'rgba(0,0,0,0)')
-  g.addColorStop(1, d.theme === 'dark' ? 'rgba(5,8,20,0.32)' : 'rgba(80,60,30,0.12)')
+  g.addColorStop(1, d.theme === 'dark' ? 'rgba(12,8,4,0.32)' : 'rgba(80,60,30,0.12)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, d.w * S, d.h * S)
   ctx.scale(S, S)

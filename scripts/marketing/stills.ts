@@ -87,13 +87,13 @@ const SLIDES: Slide[] = [
   { name: '2-computer', eyebrow: 'Play solo', head: 'Play the computer.', sub: 'Three levels, from gentle to stubborn.', shots: ['thinking'], variants: ['light', 'dark'] },
   { name: '3-online', eyebrow: 'Play together', head: 'Invite a friend, or find a player.', sub: 'Strangers stay anonymous.', shots: ['find-player', 'matched'], variants: ['light', 'dark'] },
   { name: '4-offline', eyebrow: 'Anywhere', head: 'Works offline.', sub: 'Add it to your home screen. No app store.', shots: ['idle'], variants: ['light', 'dark'] },
-  { name: '5-themes', eyebrow: 'Stitch Four', head: 'Light and dark.', sub: 'Cream linen by day, navy denim by night.', shots: ['win-diagonal', 'win-diagonal'], themes: ['light', 'dark'], variants: ['light', 'dark'] },
+  { name: '5-themes', eyebrow: 'Stitch Four', head: 'Light and dark.', sub: 'Cream linen by day, walnut linen by night.', shots: ['win-diagonal', 'win-diagonal'], themes: ['light', 'dark'], variants: ['light', 'dark'] },
 ]
 
 // ---------- colours (src/styles/theme.css) ----------
 const INK = {
   light: { ink: '#2a2723', ink2: '#4d4842', ink3: '#6f695f', red: '#b3342e', glow: 'rgba(253,252,250,0.55)' },
-  dark: { ink: '#ece8df', ink2: '#c6c1b7', ink3: '#9ea3b4', red: '#f06a5f', glow: 'rgba(20,24,40,0.45)' },
+  dark: { ink: '#f2e9dc', ink2: '#d6c7b3', ink3: '#a8957f', red: '#f08070', glow: 'rgba(20,12,6,0.45)' },
 }
 
 // ---------- assets ----------
@@ -199,14 +199,18 @@ ${phones}
 const browser = await launch()
 try {
   const page = await browser.newPage()
+  // SIZES=status-9x16 limits sizes; args may be a slide name or slide-theme (e.g. 5-themes-dark)
+  const sizes = process.env.SIZES?.split(',') ?? Object.keys(LAYOUT)
   for (const size of Object.keys(LAYOUT) as Size[]) {
+    if (!sizes.includes(size)) continue
     const L = LAYOUT[size]
     const dir = join(OUT, 'stills', size)
     mkdirSync(dir, { recursive: true })
     await page.setViewport({ width: L.w, height: L.h, deviceScaleFactor: 1 })
     for (const s of SLIDES) {
-      if (only.length && !only.includes(s.name)) continue
+      if (only.length && !only.some((o) => o === s.name || o.startsWith(s.name + '-'))) continue
       for (const theme of s.variants) {
+        if (only.length && !only.includes(s.name) && !only.includes(`${s.name}-${theme}`)) continue
         await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
         await page.setContent(await slideHtml(s, size, theme), { waitUntil: 'load' })
         await page.evaluate(() => document.fonts.ready)

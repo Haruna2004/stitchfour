@@ -8,7 +8,7 @@ import { launch, OUT, ROOT, type Theme } from './lib/browser'
 import { renderDecor, type Loose } from './lib/decor'
 
 const RAW = join(OUT, 'raw')
-const URL_TEXT = 'stitchfour.pasoma.ai'
+const URL_TEXT = 'stitchfour.harunafaruk.com'
 const only = process.argv.slice(2)
 
 // ---------- sizes + layouts ----------

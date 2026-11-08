@@ -14,6 +14,7 @@ export type Level = 'easy' | 'medium' | 'hard'
 
 export interface ChooseOpts {
   rng?: () => number
+  /** unused now (fixed depth); kept for callers */
   timeMs?: number
 }
 
@@ -353,13 +354,48 @@ function legalCols(): number[] {
   return out
 }
 
-function runDepth(cands: number[], depth: number, tt: Level | null): boolean {
-  useTT = tt !== null
-  if (tt) prepareTT(tt)
-  nodes = 0
-  aborted = false
-  deadline = Infinity
-  return rootSearch(cands, depth)
+export interface BotConfig {
+  /** fixed search depth */
+  depth: number
+  /** easy: chance of a random move */
+  randomP?: number
+  /** easy: chance of seeing its own win */
+  seeWinP?: number
+  /** chance of playing a non-best (but safe) move */
+  slipP?: number
+  /** slip candidates: top N moves by score (excluding best) */
+  slipTop?: number
+  /** slip only if within this many points of best (Infinity = any) */
+  slipMargin?: number
+  /** use transposition table */
+  tt?: boolean
+}
+
+// Tuned by src/bot/calibrate.ts
+export const CONFIGS: Record<Level, BotConfig> = {
+  easy: { depth: 2, randomP: 0.35, seeWinP: 0.6 },
+  medium: { depth: 3, slipP: 0.2, slipTop: 3, slipMargin: Infinity },
+  hard: { depth: 6, slipP: 0.1, slipTop: 1, slipMargin: 30, tt: true },
+}
+
+/** Score every candidate to `depth` (full window). Sorted best first. */
+function scoreAll(cands: number[], depth: number): { c: number; s: number }[] {
+  const out: { c: number; s: number }[] = []
+  for (const c of cands) {
+    make(c)
+    const s = -negamax(depth - 1, -INF, INF, 1)
+    unmake(c)
+    out.push({ c, s })
+  }
+  return out.sort((x, y) => y.s - x.s)
+}
+
+/** Does playing c hand the opponent an immediate win? */
+function givesWin(c: number): boolean {
+  make(c)
+  const r = canWin(nMoves & 1)
+  unmake(c)
+  return r
 }
 
 /**
@@ -367,67 +403,50 @@ function runDepth(cands: number[], depth: number, tt: Level | null): boolean {
  * Throws if the game is already full.
  */
 export function chooseMove(moves: number[], level: Level, opts: ChooseOpts = {}): number {
+  return chooseMoveWith(moves, CONFIGS[level], opts)
+}
+
+export function chooseMoveWith(moves: number[], cfg: BotConfig, opts: ChooseOpts = {}): number {
   const rng = opts.rng ?? Math.random
   setup(moves)
   const legal = legalCols()
   if (legal.length === 0) throw new Error('No legal moves')
   if (legal.length === 1) return legal[0]
   const p = nMoves & 1
-
-  if (level === 'easy') {
-    let cands = legal
-    // wins: ~60% taken, otherwise overlooked
-    if (canWin(p)) {
-      const w = thCol
-      if (rng() < 0.6) return w
-      cands = cands.filter((c) => c !== w)
-    }
-    // blocks: ~55% seen, otherwise overlooked
-    if (threats(p ^ 1) > 0) {
-      const t = thCol
-      if (rng() < 0.55) return t
-      const rest = cands.filter((c) => c !== t)
-      if (rest.length) cands = rest
-    }
-    if (rng() < 0.35) return cands[Math.floor(rng() * cands.length) % cands.length]
-    runDepth(cands, 2, null)
-    return rBest
-  }
-
-  // medium + hard: never miss a win, always block a single threat
-  if (canWin(p)) return thCol
-  const n = threats(p ^ 1)
+  const easy = cfg.randomP !== undefined
   let cands = legal
-  if (n === 1) return thCol
 
-  if (level === 'medium') {
-    runDepth(cands, 6, 'medium')
-    if (rSecond >= 0 && rBestS < MATE && rSecondS > -MATE && rBestS - rSecondS <= 40 && rng() < 0.12) return rSecond
+  if (canWin(p)) {
+    const w = thCol
+    if (!easy || rng() < (cfg.seeWinP ?? 1)) return w
+    cands = cands.filter((c) => c !== w)
+  }
+  // always block a single immediate threat (two threats: nothing to do, search picks)
+  if (threats(p ^ 1) === 1) return thCol
+
+  if (cfg.randomP && rng() < cfg.randomP) return cands[Math.floor(rng() * cands.length) % cands.length]
+
+  useTT = !!cfg.tt
+  if (useTT) prepareTT('hard')
+  nodes = 0
+  aborted = false
+  deadline = Infinity // fixed depth; timeMs is ignored
+
+  if (!cfg.slipP) {
+    rootSearch(cands, cfg.depth)
     return rBest
   }
-
-  // hard: iterative deepening
-  const timeMs = opts.timeMs ?? 900
-  const t0 = performance.now()
-  useTT = true
-  prepareTT('hard')
-  let bestCol = cands[0]
-  let second = -1
-  let bestS = 0
-  let secondS = -INF
-  for (let d = 1; d <= NCELLS - nMoves; d++) {
-    nodes = 0
-    aborted = false
-    deadline = d === 1 ? Infinity : t0 + timeMs
-    if (!rootSearch(cands, d)) break
-    bestCol = rBest
-    bestS = rBestS
-    second = rSecond
-    secondS = rSecondS
-    if (Math.abs(bestS) > MATE) break
-    if (performance.now() - t0 > timeMs * 0.5) break
-    cands = [bestCol, ...cands.filter((c) => c !== bestCol)]
+  if (!rootSearch(cands, cfg.depth)) return cands[0]
+  if (rng() >= cfg.slipP) return rBest
+  if (cfg.slipTop === 1) {
+    if (rSecond >= 0 && rBestS < MATE && rSecondS > -MATE && rBestS - rSecondS <= (cfg.slipMargin ?? 0) && !givesWin(rSecond)) return rSecond
+    return rBest
   }
-  if (second >= 0 && bestS < MATE && secondS > -MATE && bestS - secondS <= 15 && rng() < 0.06) return second
-  return bestCol
+  const ranked = scoreAll(cands, cfg.depth)
+  const margin = cfg.slipMargin ?? Infinity
+  const alts = ranked
+    .slice(1, 1 + (cfg.slipTop ?? 2))
+    .filter((x) => x.s > -MATE && ranked[0].s - x.s <= margin && !givesWin(x.c))
+  if (ranked[0].s >= MATE || alts.length === 0) return ranked[0].c
+  return alts[Math.floor(rng() * alts.length) % alts.length].c
 }

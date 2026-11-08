@@ -24,22 +24,23 @@
 }
 
 [data-theme='dark'] {
+  /* walnut linen (ported from fabricman's dark theme) */
   color-scheme: dark;
-  --page: #272e46; /* mean colour of linen-dark.webp */
+  --page: #4a392c; /* mean colour of linen-dark.webp */
   --fabric: url('/textures/linen-dark.webp');
-  --panel: #1f2538;
-  --panel-border: #343d5a;
-  --ink: #ece8df;
-  --ink-2: #c6c1b7;
-  --ink-3: #8f94a6;
-  --sage: #8fc4a0;
-  --thread-red: #e6584e;
-  --thread-gold: #f2ba42;
-  --thread-red-ink: #f06a5f;
-  --thread-gold-ink: #f2ba42;
-  --thread-win: #96a6ca; /* ring thread family, brighter */
-  --focus-ring: rgba(150, 210, 170, 0.5);
-  --shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --panel: #2f241c;
+  --panel-border: #4a3a2d;
+  --ink: #f2e9dc;
+  --ink-2: #d6c7b3;
+  --ink-3: #a8957f;
+  --sage: #6f9e7c;
+  --thread-red: #dc4c40;
+  --thread-gold: #f8be3e;
+  --thread-red-ink: #f08070;
+  --thread-gold-ink: #f2c866;
+  --thread-win: #e0cca8; /* ring thread family (oatmeal cord), brighter */
+  --focus-ring: rgba(150, 200, 165, 0.55);
+  --shadow: 0 6px 22px rgba(10, 6, 2, 0.45), 0 1px 3px rgba(10, 6, 2, 0.35);
 }
 
 .linen {

@@ -22,7 +22,9 @@ export const WIN_SEW = START + DRAW
 const easeOut = (t: number) => 1 - (1 - t) * (1 - t)
 
 export function WinThread({ layout, line, pal, reduce }: Props) {
-  const { stitches, width: w } = winBelt(line.map((p) => cellCenter(layout, p.col, p.row)), layout.cell)
+  const belt = winBelt(line.map((p) => cellCenter(layout, p.col, p.row)), layout.cell)
+  const { stitches } = belt
+  const w = belt.width * pal.winScale
   const base = css(pal.win)
   const edge = css(mix(pal.win, pal.shadeMix, 0.45), 0.7)
   const hi = css(mix(pal.win, pal.lightMix, 0.65), 0.85)

@@ -22,8 +22,8 @@ export const CARDS: Card[] = [
   { slug: 'embroidered', text: 'Embroidered.', theme: 'light', size: 170 },
   { slug: 'play-anyone', text: 'Play the computer, a friend, or someone new.', theme: 'light', size: 100 },
   { slug: 'offline', text: 'Works offline. No app store.', theme: 'light', size: 112 },
-  { slug: 'url', text: 'stitchfour.pasoma.ai', theme: 'light', size: 112 },
-  { slug: 'url', text: 'stitchfour.pasoma.ai', theme: 'dark', size: 112 },
+  { slug: 'url', text: 'stitchfour.harunafaruk.com', theme: 'light', size: 112 },
+  { slug: 'url', text: 'stitchfour.harunafaruk.com', theme: 'dark', size: 112 },
 ]
 export const SIZES = [
   { name: '1080x1920', w: 1080, h: 1920, maxw: 0.8 },

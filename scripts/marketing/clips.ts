@@ -271,7 +271,7 @@ async function background(L: Layout, theme: Theme, caption: string) {
   ctx.fillStyle = INK3[theme]
   ctx.font = `500 ${us}px Inter`
   ;(ctx as any).letterSpacing = `${(us * 0.04).toFixed(1)}px`
-  ctx.fillText('stitchfour.pasoma.ai', L.tx, uy)
+  ctx.fillText('stitchfour.harunafaruk.com', L.tx, uy)
   await sharp(c.toBuffer('image/png')).resize(L.w, L.h, { kernel: 'lanczos3' }).png().toFile(file)
   return file
 }

@@ -234,7 +234,7 @@
   box-shadow: 0 1px 1px rgba(80, 58, 30, 0.14), 0 3px 8px rgba(80, 58, 30, 0.1);
 }
 [data-theme='dark'] .label {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 1px 2px rgba(10, 6, 2, 0.4), 0 3px 10px rgba(10, 6, 2, 0.28);
 }
 .label::before {
   /* stitched hem */
@@ -347,7 +347,7 @@
   animation: lt-flow 3.6s linear infinite;
 }
 [data-theme='dark'] .lt-shadow {
-  stroke: rgba(0, 0, 0, 0.45);
+  stroke: rgba(10, 6, 2, 0.45);
 }
 .lt-twist {
   stroke: rgba(255, 252, 240, 0.5);
@@ -505,7 +505,7 @@
   box-shadow: 0 1px 1px rgba(40, 60, 40, 0.2), 0 3px 8px rgba(40, 60, 40, 0.16);
 }
 [data-theme='dark'] .update-patch {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(10, 6, 2, 0.4), 0 3px 10px rgba(10, 6, 2, 0.3);
 }
 .update-patch::before {
   /* stitched hem */

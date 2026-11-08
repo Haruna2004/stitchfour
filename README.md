@@ -8,7 +8,7 @@ A cozy four-in-a-row game sewn onto linen inside a wooden hoop.
 Play the computer, pass the phone to a friend, invite someone with a link, or find a stranger online.
 It installs to your home screen and works offline.
 
-### [▶ Play at stitchfour.pasoma.ai](https://stitchfour.pasoma.ai)
+### [▶ Play at stitchfour.harunafaruk.com](https://stitchfour.harunafaruk.com)
 
 <img src="docs/media/hero.jpg" alt="Stitch Four: a phone showing a winning row of red satin pieces with a stitched belt around them" width="100%" />
 

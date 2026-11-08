@@ -1,7 +1,7 @@
 # Stitch Four — Plan
 
 Connect Four, embroidered. Web-based, mobile-first, PWA. Huge focus on aesthetics, feel and sound.
-Name is working title (may change). Hosted at `stitchfour.pasoma.ai` (also `stitchfour.hfdev.workers.dev`).
+Name is working title (may change). Hosted at `stitchfour.harunafaruk.com` (also `stitchfour.hfdev.workers.dev`).
 
 ## Flow
 - No mode picker. App opens straight into a game **vs Computer** (default difficulty).
@@ -55,7 +55,7 @@ Inspired by StitchCraft (https://stitchcraft.wasmer.app). Whole game = embroider
 - Board: woven linen; 42 holes as stitched rings
 - Pieces: all circles; the two players differ by colour **and** stitch pattern (e.g. satin disc vs cross-stitched disc)
 - Win: thread pulls through the four winning pieces (running stitch)
-- Light + dark mode in v1 (dark = e.g. denim / navy linen)
+- Light + dark mode in v1. Dark = walnut linen (ported from fabricman): warm brown weave (page `#4a392c`, panel `#2f241c`, ink `#f2e9dc`), walnut hoop with brass screw, oatmeal-cord rings, win belt = same cord a touch brighter/thicker, deeper warm shadows, red `#dc4c40` + brighter gold pieces
 - Chrome: Lora (display) + Inter (body); light page `#f3f1eb`, panel `#fdfcfa`, ink `#2a2723`, sage `#5b8a6a`, thread red `#c9413b`; warm shadows, 14px radius
 - App icon (temp): 2×2 mini board with mixed-colour pieces
 
@@ -139,6 +139,7 @@ public/            icons, textures, sounds, manifest
 ```
 
 ## Open topics (keep discussing)
+- After the walnut dark theme ships: regenerate WhatsApp Status marketing assets only (9:16 stills + clips) with the new domain stitchfour.harunafaruk.com and new dark look
 - Game-event analytics (Analytics Engine) is built but OFF: enable Analytics Engine in the Cloudflare dashboard, add back `"analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "stitchfour_events" }]` to wrangler.jsonc, set `VITE_GAME_EVENTS=1`, deploy
 - Sound: CC0 samples chosen (v1); fine-tune picks after testing
 - Reaction phrase/emoji list: keep current for now, revisit later

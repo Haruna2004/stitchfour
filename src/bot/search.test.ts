@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { COLS, fromMoves, newGame, play, validMoves } from '../../shared/game'
 import type { GameState } from '../../shared/game'
-import { chooseMove } from './search'
-import type { Level } from './search'
+import { CONFIGS, chooseMove, chooseMoveWith } from './search'
+import type { BotConfig, Level } from './search'
 
 function mulberry32(seed: number) {
   let a = seed >>> 0
@@ -57,6 +57,8 @@ function tournament(mk: (i: number) => [Player, Player], games: number) {
 
 const levels: Level[] = ['easy', 'medium', 'hard']
 const fast = { rng: calm, timeMs: 100 }
+const always0 = () => 0 // worst case rng for easy: random slips + misses
+const OLD_MEDIUM: BotConfig = { depth: 6, slipP: 0.12, slipTop: 1, slipMargin: 40, tt: true }
 
 describe('immediate win', () => {
   const cases: [string, number[], number][] = [
@@ -78,7 +80,7 @@ describe('blocking', () => {
   const horizontal = [0, 0, 1, 1, 2]
   // p1 stacked three in col 4, p2 to move
   const vertical = [4, 0, 4, 1, 4]
-  for (const level of ['medium', 'hard'] as const) {
+  for (const level of levels) {
     it(`${level} blocks horizontal threat`, () => {
       expect(chooseMove(horizontal, level, fast)).toBe(3)
     })
@@ -86,6 +88,19 @@ describe('blocking', () => {
       expect(chooseMove(vertical, level, fast)).toBe(4)
     })
   }
+})
+
+describe('easy always blocks', () => {
+  it('blocks even with unlucky rng', () => {
+    expect(chooseMove([0, 0, 1, 1, 2], 'easy', { rng: always0 })).toBe(3)
+    expect(chooseMove([4, 0, 4, 1, 4], 'easy', { rng: always0 })).toBe(4)
+  })
+  it('medium/hard take wins and block with unlucky rng', () => {
+    for (const l of ['medium', 'hard'] as const) {
+      expect(chooseMove([0, 0, 1, 1, 2, 2], l, { rng: always0 })).toBe(3)
+      expect(chooseMove([0, 0, 1, 1, 2], l, { rng: always0 })).toBe(3)
+    }
+  })
 })
 
 describe('does not play under a winning cell', () => {
@@ -117,8 +132,11 @@ describe('does not play under a winning cell', () => {
   for (const level of ['medium', 'hard'] as const) {
     it(`${level} avoids unsafe columns`, () => {
       for (const { moves, unsafe } of cases) {
-        const col = chooseMove(moves, level, { rng: mulberry32(moves.length), timeMs: 100 })
-        expect(unsafe.has(col), `${moves.join('')} -> ${col}`).toBe(false)
+        for (let k = 0; k < 20; k++) {
+          // low rng values force the slip branch often
+          const col = chooseMove(moves, level, { rng: mulberry32(moves.length * 31 + k) })
+          expect(unsafe.has(col), `${moves.join('')} -> ${col}`).toBe(false)
+        }
       }
     })
   }
@@ -149,45 +167,53 @@ describe('legal output', () => {
 })
 
 describe('tournaments', () => {
-  it('hard beats a random player 20/20', () => {
-    const r = tournament(
-      (i) => [botPlayer('hard', mulberry32(100 + i), 30), randomPlayer(mulberry32(900 + i))],
-      20,
-    )
-    expect(r.aWins).toBe(20)
-  })
+  const cfg = (l: Level) => CONFIGS[l]
+  const bot = (c: BotConfig, seed: number): Player => {
+    const rng = mulberry32(seed)
+    return (s) => chooseMoveWith(s.moves, c, { rng })
+  }
+  const N = 60
+  const run = (a: BotConfig, b: BotConfig, base: number) =>
+    tournament((i) => [bot(a, base + i), bot(b, base + 5000 + i)], N)
+  const rate = (r: { aWins: number }) => r.aWins / N
 
-  it('hard beats easy at least 18/20', () => {
-    const r = tournament(
-      (i) => [botPlayer('hard', mulberry32(200 + i), 30), botPlayer('easy', mulberry32(800 + i))],
-      20,
-    )
-    expect(r.aWins).toBeGreaterThanOrEqual(18)
+  it('easy beats random most of the time', () => {
+    const r = tournament((i) => [bot(cfg('easy'), 10 + i), randomPlayer(mulberry32(900 + i))], N)
+    expect(rate(r)).toBeGreaterThan(0.75)
   })
-
-  it('medium beats easy more often than not', () => {
-    const r = tournament(
-      (i) => [botPlayer('medium', mulberry32(300 + i)), botPlayer('easy', mulberry32(700 + i))],
-      20,
-    )
-    expect(r.aWins).toBeGreaterThan(r.bWins)
-    expect(r.aWins).toBeGreaterThan(10)
+  it('medium beats easy clearly, not always', () => {
+    const r = run(cfg('medium'), cfg('easy'), 100)
+    expect(rate(r)).toBeGreaterThan(0.6)
+    expect(rate(r)).toBeLessThan(0.97)
+  })
+  it('hard beats medium clearly, not always', () => {
+    const r = run(cfg('hard'), cfg('medium'), 200)
+    expect(rate(r)).toBeGreaterThan(0.6)
+    expect(rate(r)).toBeLessThan(0.97)
+  })
+  it('hard beats easy', () => {
+    expect(rate(run(cfg('hard'), cfg('easy'), 300))).toBeGreaterThan(0.85)
+  })
+  it('hard is comparable to old medium (not much stronger)', () => {
+    const r = run(cfg('hard'), OLD_MEDIUM, 400)
+    expect(rate(r)).toBeGreaterThan(0.3)
+    expect(rate(r)).toBeLessThan(0.7)
   })
 })
 
 describe('timing', () => {
-  it('hard on the empty board is under 1200ms', () => {
+  it('hard on the empty board is under 350ms', () => {
     const t = performance.now()
     chooseMove([], 'hard', { rng: calm })
-    expect(performance.now() - t).toBeLessThan(1200)
+    expect(performance.now() - t).toBeLessThan(350)
   })
-  it('hard mid-game is under 1200ms', () => {
+  it('hard mid-game is under 350ms', () => {
     const moves = [4, 2, 2, 4, 1, 0, 1, 3]
     const s = fromMoves(moves)
     expect(s.winner).toBe(0)
     const t = performance.now()
     chooseMove(moves, 'hard', { rng: calm })
-    expect(performance.now() - t).toBeLessThan(1200)
+    expect(performance.now() - t).toBeLessThan(350)
   })
   it('exports sane column range', () => {
     expect(COLS).toBe(7)

@@ -57,7 +57,7 @@
   box-shadow: var(--lift);
 }
 [data-theme='dark'] .match-prompt {
-  background: color-mix(in srgb, #fff 4%, var(--panel));
+  background: color-mix(in srgb, #ffecd2 5%, var(--panel));
 }
 .match-prompt::before {
   content: '';
@@ -135,7 +135,7 @@
   pointer-events: none;
 }
 [data-theme='dark'] .hoop-mini::before {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px rgba(10, 6, 2, 0.45), inset 0 1px 6px rgba(10, 6, 2, 0.35);
 }
 .hm-guide {
   fill: none;
@@ -160,6 +160,9 @@
 }
 .hm-shadow {
   stroke: rgba(50, 30, 10, 0.25);
+}
+[data-theme='dark'] .hm-shadow {
+  stroke: rgba(8, 5, 2, 0.45);
 }
 .hm-shadow.is-in {
   stroke-dasharray: 6 4.2;

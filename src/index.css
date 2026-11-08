@@ -18,17 +18,17 @@
   --tone-hard: #b5503f;
 }
 [data-theme='dark'] {
-  --stitch: rgba(176, 188, 222, 0.42);
-  --stitch-soft: rgba(176, 188, 222, 0.24);
-  --panel-a: rgba(30, 36, 56, 0.88);
-  --wood: #9a6840;
-  --wood-light: #c89464;
-  --wood-dark: #3e2716;
-  --primary: #79b08c;
-  --primary-ink: #10201a;
-  --backdrop: rgba(4, 6, 16, 0.55);
-  --lift: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.3);
-  --lift-press: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.35);
+  --stitch: rgba(214, 194, 160, 0.42);
+  --stitch-soft: rgba(214, 194, 160, 0.24);
+  --panel-a: rgba(47, 36, 28, 0.88);
+  --wood: #805432;
+  --wood-light: #b07c50;
+  --wood-dark: #382212;
+  --primary: #557e62;
+  --primary-ink: #fbf6ec;
+  --backdrop: rgba(12, 8, 4, 0.5);
+  --lift: 0 1px 0 rgba(255, 236, 210, 0.06) inset, 0 1px 2px rgba(10, 6, 2, 0.4), 0 4px 12px rgba(10, 6, 2, 0.35);
+  --lift-press: 0 1px 0 rgba(255, 236, 210, 0.04) inset, 0 1px 2px rgba(10, 6, 2, 0.4);
   --tone-easy: #8cc47a;
   --tone-medium: #e6b54e;
   --tone-hard: #e0705c;

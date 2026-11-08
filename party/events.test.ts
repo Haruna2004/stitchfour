@@ -108,7 +108,7 @@ describe('cleanCountry', () => {
 
 describe('handleEvent', () => {
   const req = (body: string, init: RequestInit = {}) =>
-    new Request('https://stitchfour.pasoma.ai/api/event', { method: 'POST', body, ...init })
+    new Request('https://stitchfour.harunafaruk.com/api/event', { method: 'POST', body, ...init })
   const fake = () => ({ writeDataPoint: vi.fn() })
 
   it('writes valid events with the country and returns 204', async () => {
@@ -136,11 +136,11 @@ describe('handleEvent', () => {
     expect(EVENTS.writeDataPoint).not.toHaveBeenCalled()
   })
   it('allows same-origin requests', async () => {
-    const r = req('{"events":[{"e":"undo","mode":"bot"}]}', { headers: { origin: 'https://stitchfour.pasoma.ai' } })
+    const r = req('{"events":[{"e":"undo","mode":"bot"}]}', { headers: { origin: 'https://stitchfour.harunafaruk.com' } })
     expect((await handleEvent(r, {})).status).toBe(204)
   })
   it('rejects non-POST with 405', async () => {
-    const r = new Request('https://stitchfour.pasoma.ai/api/event', { method: 'GET' })
+    const r = new Request('https://stitchfour.harunafaruk.com/api/event', { method: 'GET' })
     expect((await handleEvent(r, {})).status).toBe(405)
   })
   it('survives a throwing binding', async () => {

@@ -27,6 +27,8 @@ export interface Palette {
   p1: RGB
   p2: RGB
   win: RGB
+  winScale: number // belt thickness multiplier
+  dimAlpha: number // opacity of non-winning pieces after a win
 }
 
 export const PALETTE: Record<Theme, Palette> = {
@@ -51,27 +53,33 @@ export const PALETTE: Record<Theme, Palette> = {
     p1: [201, 65, 59],
     p2: [226, 166, 47],
     win: [120, 99, 76], // --thread-win: ring thread, a touch deeper
+    winScale: 1,
+    dimAlpha: 0.45,
   },
   dark: {
-    shadeMix: [10, 12, 22],
-    lightMix: [250, 246, 236],
-    shadowInk: [6, 8, 18],
-    shadowAlpha: 0.5,
-    tautTint: 'rgba(150, 170, 230, 0.05)',
-    rimShadow: 'rgba(4, 6, 14, 0.6)',
-    holeShade: 'rgba(6, 8, 20, 0.2)',
-    holeShadow: 'rgba(2, 4, 12, 0.7)',
-    holeRim: 'rgba(170, 186, 230, 0.32)',
-    ring: [118, 132, 164],
-    wood: [112, 72, 44],
-    woodLight: [168, 118, 78],
-    woodDark: [52, 32, 20],
-    grain: [36, 20, 10],
-    brass: [178, 140, 70],
-    brassLight: [236, 208, 140],
-    brassDark: [90, 62, 24],
-    p1: [228, 78, 70],
-    p2: [242, 186, 66],
-    win: [150, 166, 202], // --thread-win: ring thread, a touch brighter so it reads on navy
+    // walnut linen (ported from fabricman): warm brown cloth, oatmeal cord rings, deeper warm shadows
+    shadeMix: [14, 9, 5],
+    lightMix: [255, 244, 226],
+    shadowInk: [8, 5, 2],
+    shadowAlpha: 0.51, // light 0.32 x 1.6
+    tautTint: 'rgba(255, 226, 190, 0.035)',
+    rimShadow: 'rgba(8, 5, 2, 0.6)',
+    holeShade: 'rgba(14, 9, 5, 0.2)',
+    holeShadow: 'rgba(8, 5, 2, 0.72)',
+    holeRim: 'rgba(255, 232, 200, 0.2)',
+    ring: [184, 166, 136], // oatmeal cord, toned down so 42 rings don't shout
+    wood: [128, 84, 50],
+    woodLight: [176, 124, 80],
+    woodDark: [56, 34, 18],
+    grain: [42, 24, 10],
+    brass: [184, 146, 72],
+    brassLight: [240, 214, 150],
+    brassDark: [96, 66, 24],
+    p1: [220, 76, 64],
+    p2: [248, 190, 62],
+    win: [224, 204, 168], // --thread-win: ring thread, a touch brighter so it reads on walnut
+    winScale: 1.1,
+    dimAlpha: 0.6, // 0.45 turns gold muddy on brown
   },
+
 }

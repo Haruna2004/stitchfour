@@ -22,7 +22,7 @@ interface FabricStyle {
 
 const STYLES: Record<string, FabricStyle> = {
   light: { warp: [255, 251, 240], weft: [252, 245, 230], gain: 1.06, warmShift: 6, quality: 62 },
-  dark: { warp: [62, 74, 112], weft: [40, 47, 74], gain: 0.86, warmShift: -3, quality: 62 },
+  dark: { warp: [100, 77, 60], weft: [86, 66, 51], gain: 0.9, warmShift: 5, quality: 62 }, // walnut linen
 }
 
 // Seeded integer hash -> [0,1)

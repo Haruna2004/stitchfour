@@ -189,7 +189,7 @@ export function Board({ state, theme, interactive, onColumn, onLand }: BoardProp
                 layout={layout}
                 src={sprites[p.player]}
                 drop={p.index >= dropFrom}
-                dim={showWin && !winKeys.has(`${p.col},${p.row}`)}
+                dim={showWin && !winKeys.has(`${p.col},${p.row}`) ? pal.dimAlpha : 1}
                 pulse={showWin && winKeys.has(`${p.col},${p.row}`)}
                 reduce={reduce}
                 onLanded={landed}
@@ -242,7 +242,7 @@ interface PieceProps {
   layout: Layout
   src: string
   drop: boolean
-  dim: boolean
+  dim: number // opacity (1 = not dimmed)
   pulse: boolean
   reduce: boolean
   onLanded: (p: PieceInfo) => void
@@ -303,7 +303,7 @@ function Piece({ p, layout, src, drop, dim, pulse, reduce, onLanded }: PieceProp
     <motion.div
       className="piece"
       style={{ left: x - size / 2, top: y - size / 2, width: size, height: size }}
-      animate={{ opacity: dim ? 0.45 : 1 }}
+      animate={{ opacity: dim }}
       transition={{ duration: reduce ? 0.1 : 0.4 }}
       variants={reduce ? exitReduced : exitVariants}
       exit="gone"

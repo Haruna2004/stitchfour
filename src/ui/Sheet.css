@@ -33,7 +33,7 @@ body.is-locked {
   outline: none;
 }
 [data-theme='dark'] .sheet {
-  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 -10px 34px rgba(10, 6, 2, 0.45);
 }
 .sheet::before {
   content: '';
@@ -62,7 +62,7 @@ body.is-locked {
   box-shadow: 0 18px 50px rgba(46, 30, 12, 0.24), 0 2px 8px rgba(46, 30, 12, 0.12);
 }
 [data-theme='dark'] .is-card .sheet {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 18px 50px rgba(10, 6, 2, 0.5);
 }
 .is-card .sheet::before {
   inset: 8px;

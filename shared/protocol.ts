@@ -23,11 +23,11 @@ export const REACTIONS = [
   'Cool',
   'Good game',
   'Oops',
+  '❤️',
   '😂',
   '😮',
   '🔥',
-  '😤',
-  '👏',
+  '🙄',
 ] as const
 export type ReactionId = number // index into REACTIONS
 
